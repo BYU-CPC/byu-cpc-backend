@@ -1,0 +1,6 @@
+Flask
+firebase_admin
+bs4
+flask-cors
+google-cloud-firestore
+
