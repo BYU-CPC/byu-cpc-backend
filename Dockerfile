@@ -1,3 +1,4 @@
+# 1
 FROM python:3.12
 
 # 2
@@ -8,7 +9,4 @@ COPY src/ /app
 WORKDIR /app
 
 # 4
-ENV PORT 8080
-
-# 5
-CMD ["gunicorn", "--bind", ":$PORT", "--workers", "1", "--threads", "8", "main:app"]
+CMD ["gunicorn", "--bind", ":8080", "--workers", "1", "--threads", "8", "main:app"]
