@@ -1,8 +1,8 @@
 from datetime import datetime as dt
 from math import sqrt
 
-START = dt.fromisoformat("2024-03-27T00:00:00.0")
-END = dt.fromisoformat("2024-08-27T23:59:59.999")
+START = dt.fromisoformat("2024-05-14T00:00:00.0")
+END = dt.fromisoformat("2024-05-16T23:59:59.999")
 
 DIFFICULTY_EXPO = 1.2
 
@@ -107,17 +107,11 @@ def get_level(exp):
     return level, round(next_level), round(exp - get_exp_from_level(level))
 
 
-def filter(user):
-    filtered = []
-    for problem in user["kattis_data"]:
-        t = dt.fromtimestamp(problem["timestamp"])
-        if START < t < END:
-            filtered.append(problem)
-    user["kattis_data"] = filtered
+def is_timestamp_in_contest(timestamp):
+    return START < dt.fromtimestamp(timestamp) < END
 
 
 def get_table_info(user):
-    filter(user)
     days = get_days(user)
     user["cur_streak"] = get_cur_streak(days)
     user["max_streak"] = get_max_streak(days)

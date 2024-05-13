@@ -1,6 +1,6 @@
 from flask import Flask, request
 from flask_cors import CORS, cross_origin
-from transform_user import get_table_info
+from transform_user import get_table_info, is_timestamp_in_contest
 from google.cloud import firestore
 from firebase_admin import auth
 import firebase_admin
@@ -11,12 +11,20 @@ import requests
 from collections import defaultdict
 import json
 
-firebase_admin.initialize_app()
+# Delete this
+from firebase_admin import credentials
+
+cred = credentials.Certificate("./firebase.json")
+firebase_admin.initialize_app(cred)
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "./firebase.json"
+# firebase_admin.initialize_app()
 app = Flask(__name__)
 cors = CORS(app)
 app.config["CORS_HEADERS"] = "Content-Type"
 
+
 db = firestore.Client(project="byu-cpc")
+problem_cache = {}
 
 
 def get_username():
@@ -42,36 +50,35 @@ def invalidate_cache():
 
 def calc_table():
     global global_cache
-    # TODO: make this async to request more users at once
     rows = []
     docs = db.collection("users").stream()
-    difficulty_stream = db.collection("problems").stream()
-    difficulties = {doc.id: doc.to_dict()["difficulty"] for doc in difficulty_stream}
+    difficulties_ref = db.collection("problems")
     for doc in docs:
         user = doc.to_dict()
         user["id"] = doc.id
         if user["kattis_username"]:
-            submissions = (
-                db.collection("kattis")
-                .document(user["kattis_username"])
-                .collection("submissions")
-                .stream()
-            )
-            timestamps = defaultdict(lambda: inf)
-            for submission in submissions:
-                submission_data = submission.to_dict()
-                id = submission_data["problem_id"]
-                timestamps[id] = min(
-                    timestamps[id], submission_data["timestamp"] / 1000
-                )
+            submissions_ref = db.collection("kattis").document(user["kattis_username"])
+            submissions = submissions_ref.get().to_dict()
+            if not submissions:
+                submissions = {}
             problems = []
-            for key in timestamps:
-                # TODO: check if timestamp is within contest bounds
+            for submission in submissions:
+                if not is_timestamp_in_contest(submissions[submission]):
+                    continue
+                difficulty = 0
+                if submission in problem_cache:
+                    difficulty = problem_cache[submission]
+                else:
+                    difficulty_dict = (
+                        difficulties_ref.document(submission).get().to_dict()
+                    )
+                    difficulty = difficulty_dict["difficulty"] if difficulty_dict else 0
+                    problem_cache[submission] = difficulty
                 problems.append(
                     {
-                        "id": key,
-                        "timestamp": timestamps[key],
-                        "difficulty": difficulties[key] if key in difficulties else 0,
+                        "id": submission,
+                        "timestamp": submissions[submission],
+                        "difficulty": difficulty,
                     }
                 )
             user["kattis_data"] = problems
@@ -100,21 +107,21 @@ def get_table():
 @app.route("/kattis_submit", methods=["POST"])
 @cross_origin()
 def kattis_submissions():
-    invalidate_cache()
     data = request.json
-    submissions_ref = (
-        db.collection("kattis").document(data["username"]).collection("submissions")
-    )
-    batch = db.batch()
+    submissions_ref = db.collection("kattis").document(data["username"])
+    submissions = submissions_ref.get().to_dict()
+    if not submissions:
+        submissions = {}
+    change = False
     for problem in data["submissions"]:
-        ref = submissions_ref.document(problem["submissionId"])
-        problem_data = {
-            "problem_id": problem["problemId"],
-            "timestamp": problem["timestamp"],
-        }
-        batch.set(ref, problem_data)
-    batch.commit()
-
+        problem_id = problem["problemId"]
+        timestamp = problem["timestamp"] / 1000
+        if problem_id not in submissions or submissions[problem_id] > timestamp:
+            change = True
+            submissions[problem_id] = timestamp
+    if change:
+        submissions_ref.set(submissions)
+        invalidate_cache()
     return "ok", 200
 
 
