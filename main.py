@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 import requests
 from collections import defaultdict
 import json
+from datetime import datetime as dt
 
 firebase_admin.initialize_app()
 app = Flask(__name__)
@@ -32,18 +33,11 @@ def is_logged_in():
     return False
 
 
-global_cache = None
-
-
 def invalidate_cache():
-    global global_cache
-    print("clearing cache")
-    global_cache = None
     db.collection("table").document("cache").set(None)
 
 
 def calc_table():
-    global global_cache
     rows = []
     docs = db.collection("users").stream()
     difficulties_ref = db.collection("problems")
@@ -60,14 +54,21 @@ def calc_table():
                 if not is_timestamp_in_contest(submissions[submission]):
                     continue
                 difficulty = 0
-                if submission in problem_cache:
-                    difficulty = problem_cache[submission]
+                if (
+                    submission in problem_cache
+                    and problem_cache[submission]["timestamp"] - dt.now()
+                    < 1000 * 60 * 60 * 24
+                ):
+                    difficulty = problem_cache[submission]["difficulty"]
                 else:
                     difficulty_dict = (
                         difficulties_ref.document(submission).get().to_dict()
                     )
                     difficulty = difficulty_dict["difficulty"] if difficulty_dict else 0
-                    problem_cache[submission] = difficulty
+                    problem_cache[submission] = {
+                        "difficulty": difficulty,
+                        "timestamp": dt.now(),
+                    }
                 problems.append(
                     {
                         "id": submission,
@@ -79,21 +80,15 @@ def calc_table():
         user["cf_data"] = {"contests": [], "problems": []}
         rows.append(get_table_info(user))
     json_rows = json.dumps(rows)
-    global_cache = json_rows
     db.collection("table").document("cache").set({"cache": json_rows, "valid": 1})
     return json_rows
 
 
 @app.route("/get_table")
 def get_table():
-    global global_cache
-    if global_cache:
-        print("hit global cache")
-        return global_cache
     cache = db.collection("table").document("cache").get().to_dict()
     if cache and cache["valid"]:
         print("hit db cache")
-        global_cache = cache["cache"]
         return cache["cache"]
     return calc_table()
 
