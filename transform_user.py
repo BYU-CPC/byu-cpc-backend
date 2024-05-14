@@ -2,7 +2,7 @@ from datetime import datetime as dt
 from math import sqrt
 
 START = dt.fromisoformat("2024-05-14T00:00:00.0")
-END = dt.fromisoformat("2024-05-16T23:59:59.999")
+END = dt.fromisoformat("2024-05-14T23:59:59.999")
 
 DIFFICULTY_EXPO = 1.2
 

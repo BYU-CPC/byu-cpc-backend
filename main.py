@@ -56,7 +56,7 @@ def calc_table():
                 difficulty = 0
                 if (
                     submission in problem_cache
-                    and problem_cache[submission]["timestamp"] - dt.now()
+                    and dt.now().timestamp() - problem_cache[submission]["timestamp"]
                     < 1000 * 60 * 60 * 24
                 ):
                     difficulty = problem_cache[submission]["difficulty"]
@@ -67,7 +67,7 @@ def calc_table():
                     difficulty = difficulty_dict["difficulty"] if difficulty_dict else 0
                     problem_cache[submission] = {
                         "difficulty": difficulty,
-                        "timestamp": dt.now(),
+                        "timestamp": dt.now().timestamp(),
                     }
                 problems.append(
                     {
