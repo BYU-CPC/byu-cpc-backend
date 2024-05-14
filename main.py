@@ -11,7 +11,7 @@ import requests
 from collections import defaultdict
 import json
 
- firebase_admin.initialize_app()
+firebase_admin.initialize_app()
 app = Flask(__name__)
 cors = CORS(app)
 app.config["CORS_HEADERS"] = "Content-Type"
