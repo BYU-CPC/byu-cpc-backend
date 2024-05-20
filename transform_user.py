@@ -1,8 +1,8 @@
 from datetime import datetime as dt
 from math import sqrt
 
-START = dt.fromisoformat("2024-05-14T00:00:00.0")
-END = dt.fromisoformat("2024-05-14T23:59:59.999")
+START = dt.fromisoformat("2024-05-21T00:00:00.0")
+END = dt.fromisoformat("2024-09-12T18:00:00.0")
 
 DIFFICULTY_EXPO = 1.2
 
@@ -80,7 +80,7 @@ def get_cf_exp(user, exp):
         day = get_day_from_timestamp(contest["timestamp"])
         if day not in exp:
             exp[day] = 0.0
-        exp[day] += 200
+        exp[day] += 100
     return exp
 
 
@@ -117,7 +117,7 @@ def get_table_info(user):
     user["max_streak"] = get_max_streak(days)
     user["days"] = sorted(days)
     user["exp"] = get_exp_by_day(user)
-    get_streak_bonus(user, days)
+    # get_streak_bonus(user, days)
     user["score"] = round(sum(user["exp"].values()))
     user["is_active"] = get_is_active(days)
     level, next_level, cur_exp = get_level(user["score"])
