@@ -65,10 +65,11 @@ def calc_table():
                         difficulties_ref.document(submission).get().to_dict()
                     )
                     difficulty = difficulty_dict["difficulty"] if difficulty_dict else 0
-                    problem_cache[submission] = {
-                        "difficulty": difficulty,
-                        "timestamp": dt.now().timestamp(),
-                    }
+                    if difficulty:
+                        problem_cache[submission] = {
+                            "difficulty": difficulty,
+                            "timestamp": dt.now().timestamp(),
+                        }
                 problems.append(
                     {
                         "id": submission,
