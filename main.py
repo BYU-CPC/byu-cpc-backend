@@ -12,6 +12,7 @@ from collections import defaultdict
 import json
 from datetime import datetime as dt
 
+os.environ["TZ"] = "US/Mountain"
 firebase_admin.initialize_app()
 app = Flask(__name__)
 cors = CORS(app)
