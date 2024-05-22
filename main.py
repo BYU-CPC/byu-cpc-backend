@@ -5,7 +5,7 @@ from google.cloud import firestore
 from firebase_admin import auth
 import firebase_admin
 from math import inf
-import os
+import os, time
 from bs4 import BeautifulSoup
 import requests
 from collections import defaultdict
@@ -13,6 +13,7 @@ import json
 from datetime import datetime as dt
 
 os.environ["TZ"] = "US/Mountain"
+time.tzset()
 firebase_admin.initialize_app()
 app = Flask(__name__)
 cors = CORS(app)
