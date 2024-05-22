@@ -1,14 +1,22 @@
 from datetime import datetime as dt
 from math import sqrt
+import pytz
 
-START = dt.fromisoformat("2024-05-21T00:00:00.0")
-END = dt.fromisoformat("2024-09-12T18:00:00.0")
+START = dt.fromisoformat("2024-05-21T00:00:00.0").replace(
+    tzinfo=pytz.timezone("US/Mountain")
+)
+print(START.timestamp())
+END = dt.fromisoformat("2024-09-12T18:00:00.0").replace(
+    tzinfo=pytz.timezone("US/Mountain")
+)
 
 DIFFICULTY_EXPO = 1.2
 
 
 def get_day_from_timestamp(t):
-    return (dt.fromtimestamp(t) - START).days
+    return (
+        dt.fromtimestamp(t).replace(tzinfo=pytz.timezone("US/Mountain")) - START
+    ).days
 
 
 def get_days(user):
@@ -41,16 +49,6 @@ def get_max_streak(days):
             cur = 1
         best = max(cur, best)
     return best
-
-
-def get_streak_bonus(user, days):
-    cur = 0
-    for day in sorted(days):
-        if day - 1 in days:
-            cur += 1
-        else:
-            cur = 1
-        user["exp"][day] += cur**1.2
 
 
 def kattis_difficulty_to_exp(d):
@@ -88,6 +86,8 @@ def get_exp_by_day(user):
     exp = {}
     exp = get_kattis_exp(user, exp)
     exp = get_cf_exp(user, exp)
+    for day in exp:
+        exp[day] += 10
     return exp
 
 
@@ -108,7 +108,11 @@ def get_level(exp):
 
 
 def is_timestamp_in_contest(timestamp):
-    return START < dt.fromtimestamp(timestamp) < END
+    return (
+        START
+        < dt.fromtimestamp(timestamp).replace(tzinfo=pytz.timezone("US/Mountain"))
+        < END
+    )
 
 
 def get_table_info(user):
@@ -117,7 +121,6 @@ def get_table_info(user):
     user["max_streak"] = get_max_streak(days)
     user["days"] = sorted(days)
     user["exp"] = get_exp_by_day(user)
-    # get_streak_bonus(user, days)
     user["score"] = round(sum(user["exp"].values()))
     user["is_active"] = get_is_active(days)
     level, next_level, cur_exp = get_level(user["score"])
