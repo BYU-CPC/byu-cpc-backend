@@ -5,7 +5,6 @@ import pytz
 START = dt.fromisoformat("2024-05-21T00:00:00.0").replace(
     tzinfo=pytz.timezone("US/Mountain")
 )
-print(START.timestamp())
 END = dt.fromisoformat("2024-09-12T18:00:00.0").replace(
     tzinfo=pytz.timezone("US/Mountain")
 )

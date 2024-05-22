@@ -213,6 +213,24 @@ def set_codeforces_username():
     return "not signed in", 400
 
 
+@app.route("/get_profile", methods=["POST"])
+def get_profile():
+    if is_logged_in():
+        print("logged in")
+        username = get_username()
+        user_data = db.collection("users").document(username).get().to_dict()
+        return json.dumps(user_data), 200
+    return "not signed in", 400
+
+
+@app.route("/kattis/validate", methods=["POST"])
+def kattis_validate():
+    username = request.json["username"]
+    url = f"https://open.kattis.com/users/{username}"
+    response = requests.get(url)
+    return {"valid": response.status_code == 200}
+
+
 @app.route("/ping")
 def ping():
     return "pong", 200
