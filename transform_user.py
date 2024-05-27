@@ -1,4 +1,5 @@
 from datetime import datetime as dt
+from datetime import timedelta
 from math import sqrt
 import pytz
 
@@ -18,6 +19,10 @@ def get_day_from_timestamp(t):
     ).days
 
 
+def get_weekday_from_day(d):
+    return (START + timedelta(days=d)).weekday()
+
+
 def get_days(user):
     timestamps = [
         d["timestamp"]
@@ -28,13 +33,18 @@ def get_days(user):
     return {get_day_from_timestamp(t) for t in timestamps}
 
 
+def skippable(day):
+    return get_weekday_from_day(day) == 6
+
+
 def get_cur_streak(days):
     today = get_day_from_timestamp(dt.now().timestamp())
     count = 1 if today in days else 0
     today -= 1
-    while today in days:
+    while today in days or skippable(today):
+        if today in days:
+            count += 1
         today -= 1
-        count += 1
     return count
 
 
@@ -44,7 +54,8 @@ def get_max_streak(days):
     for i in sorted(days):
         if i - 1 in days:
             cur += 1
-        else:
+        # let people take a break on Sundays without ending their streak
+        elif not skippable(i - 1):
             cur = 1
         best = max(cur, best)
     return best
