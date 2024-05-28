@@ -194,7 +194,7 @@ def set_kattis_username():
     invalidate_cache()
     if is_logged_in():
         username = get_username()
-        kattis_username = request.json["kattis_username"]
+        kattis_username = request.json["username"]
         user_ref = db.collection("users").document(username)
         user_ref.update({"kattis_username": kattis_username})
         return "ok", 200
@@ -206,7 +206,7 @@ def set_codeforces_username():
     invalidate_cache()
     if is_logged_in():
         username = get_username()
-        codeforces_username = request.json["codeforces_username"]
+        codeforces_username = request.json["username"]
         user_ref = db.collection("users").document(username)
         user_ref.update({"codeforces_username": codeforces_username})
         return "ok", 200
