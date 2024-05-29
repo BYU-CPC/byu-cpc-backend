@@ -81,6 +81,54 @@ def calc_table():
                 )
             user["kattis_data"] = problems
         user["cf_data"] = {"contests": [], "problems": []}
+        if user["codeforces_username"]:
+            submissions_ref = db.collection("codeforces").document(
+                user["codeforces_username"]
+            )
+            submissions = submissions_ref.get().to_dict()
+            if not submissions:
+                submissions = {"contests": {}}
+            problems = []
+            for submission in submissions:
+                if submission == "contests":
+                    print(submissions[submission])
+                    user["cf_data"]["contests"] = [
+                        {
+                            "id": contest_id,
+                            "timestamp": submissions[submission][contest_id],
+                        }
+                        for contest_id in submissions[submission]
+                        if is_timestamp_in_contest(submissions[submission][contest_id])
+                    ]
+                    continue
+                if not is_timestamp_in_contest(submissions[submission]["time"]):
+                    continue
+                difficulty = 0
+                if (
+                    submission in problem_cache
+                    and dt.now().timestamp() - problem_cache[submission]["timestamp"]
+                    < 1000 * 60 * 60 * 24
+                ):
+                    difficulty = problem_cache[submission]["difficulty"]
+                else:
+                    difficulty_dict = (
+                        difficulties_ref.document(submission).get().to_dict()
+                    )
+                    difficulty = difficulty_dict["difficulty"] if difficulty_dict else 0
+                    if difficulty:
+                        problem_cache[submission] = {
+                            "difficulty": difficulty,
+                            "timestamp": dt.now().timestamp(),
+                        }
+                problems.append(
+                    {
+                        "id": submission,
+                        "timestamp": submissions[submission]["time"],
+                        "difficulty": difficulty,
+                        "type": submissions[submission]["type"],
+                    }
+                )
+            user["cf_data"]["problems"] = problems
         rows.append(get_table_info(user))
     json_rows = json.dumps(rows)
     db.collection("table").document("cache").set({"cache": json_rows, "valid": 1})
@@ -120,7 +168,7 @@ def kattis_submissions():
 def add_codeforces_problem_rating(id, rating):
     if id in problem_cache:
         return
-    problem_cache[id] = rating
+    problem_cache[id] = {"difficulty": rating, "timestamp": dt.now().timestamp()}
     problem_ref = db.collection("problems").document(id)
     problem_ref.set({"difficulty": rating, "platform": "codeforces"})
 
@@ -151,7 +199,11 @@ def check_users():
                 submissions = content["result"]
                 for submission in submissions:
                     submit_time = submission["creationTimeSeconds"]
-                    if submit_time < last_checked or submission["verdict"] != "OK":
+                    if (
+                        submit_time < last_checked
+                        or submission["verdict"] != "OK"
+                        or len(submission["author"]["members"]) > 1
+                    ):
                         continue
                     problem_id = str(submission["problem"]["contestId"]) + str(
                         submission["problem"]["index"]
@@ -167,7 +219,7 @@ def check_users():
                         }
                         if submission["author"]["participantType"] == "CONTESTANT":
                             past_submissions["contests"][
-                                submission["contestId"]
+                                str(submission["contestId"])
                             ] = submit_time
                         if (
                             "rating" in submission["problem"]
@@ -184,6 +236,15 @@ def check_users():
     if any_change:
         invalidate_cache()
 
+    return "ok"
+
+
+@app.route("/invalidate_users", methods=["GET"])
+def invalidate_users():
+    users_ref = db.collection("users")
+    results = users_ref.stream()
+    for user in results:
+        users_ref.document(user.id).update({"last_checked": 0})
     return "ok"
 
 
@@ -250,6 +311,7 @@ def create_user():
 
         user_ref.set(document)
         return "ok", 200
+    return "not signed in", 400
 
 
 @app.route("/set_kattis_username", methods=["POST"])
@@ -271,7 +333,7 @@ def set_codeforces_username():
         username = get_username()
         codeforces_username = request.json["username"]
         user_ref = db.collection("users").document(username)
-        user_ref.update({"codeforces_username": codeforces_username})
+        user_ref.update({"codeforces_username": codeforces_username, "last_checked": 0})
         return "ok", 200
     return "not signed in", 400
 
