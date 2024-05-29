@@ -117,15 +117,78 @@ def kattis_submissions():
     return "ok", 200
 
 
+def add_codeforces_problem_rating(id, rating):
+    if id in problem_cache:
+        return
+    problem_cache[id] = rating
+    problem_ref = db.collection("problems").document(id)
+    problem_ref.set({"difficulty": rating, "platform": "codeforces"})
+
+
 @app.route("/check_users", methods=["GET"])
 def check_users():
-    # TODO: check one user at a time, add "last_checked" to db, and use cron to check each user's codeforces submissions
-    pass
+    users_ref = db.collection("users")
+    query = users_ref.order_by(
+        "last_checked", direction=firestore.Query.ASCENDING
+    ).limit(5)
+    results = query.stream()
+    any_change = False
+    for user in results:
+        user_id = user.id
+        user_dict = user.to_dict()
+        codeforces_username = user_dict["codeforces_username"]
+        last_checked = user_dict["last_checked"]
+        change = False
+        if codeforces_username:
+            submissions_ref = db.collection("codeforces").document(codeforces_username)
+            past_submissions = submissions_ref.get().to_dict()
+            if not past_submissions:
+                past_submissions = {"contests": {}}
+            url = f"https://codeforces.com/api/user.status?handle={codeforces_username}"
+            response = requests.get(url)
+            if response.status_code == 200:
+                content = response.json()
+                submissions = content["result"]
+                for submission in submissions:
+                    submit_time = submission["creationTimeSeconds"]
+                    if submit_time < last_checked or submission["verdict"] != "OK":
+                        continue
+                    problem_id = str(submission["problem"]["contestId"]) + str(
+                        submission["problem"]["index"]
+                    )
+                    if (
+                        problem_id not in past_submissions
+                        or submit_time < past_submissions[problem_id]["time"]
+                    ):
+                        change = True
+                        past_submissions[problem_id] = {
+                            "time": submit_time,
+                            "type": submission["author"]["participantType"].lower(),
+                        }
+                        if submission["author"]["participantType"] == "CONTESTANT":
+                            past_submissions["contests"][
+                                submission["contestId"]
+                            ] = submit_time
+                        if (
+                            "rating" in submission["problem"]
+                            and submission["problem"]["rating"]
+                        ):
+                            add_codeforces_problem_rating(
+                                problem_id, submission["problem"]["rating"]
+                            )
+            if change:
+                submissions_ref.set(past_submissions)
+                any_change = True
+            time.sleep(2)
+        users_ref.document(user_id).update({"last_checked": dt.now().timestamp()})
+    if any_change:
+        invalidate_cache()
+
+    return "ok"
 
 
 @app.route("/check_problems", methods=["GET"])
 def check_problems():
-    # TODO: add cron to check problems once a day
     page_ref = db.collection("kattis").document("problem_crawler_page")
     page = page_ref.get().to_dict()
     n = page["page"] if page and "page" in page else 1
