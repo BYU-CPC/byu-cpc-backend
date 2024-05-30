@@ -93,7 +93,6 @@ def calc_table():
             problems = []
             for submission in submissions:
                 if submission == "contests":
-                    print(submissions[submission])
                     user["cf_data"]["contests"] = [
                         {
                             "id": contest_id,
@@ -105,7 +104,7 @@ def calc_table():
                     continue
                 if not is_timestamp_in_contest(submissions[submission]["time"]):
                     continue
-                difficulty = 0
+                difficulty = 800
                 if (
                     submission in problem_cache
                     and dt.now().timestamp() - problem_cache[submission]["timestamp"]
@@ -116,7 +115,9 @@ def calc_table():
                     difficulty_dict = (
                         difficulties_ref.document(submission).get().to_dict()
                     )
-                    difficulty = difficulty_dict["difficulty"] if difficulty_dict else 0
+                    difficulty = (
+                        difficulty_dict["difficulty"] if difficulty_dict else 800
+                    )
                     if difficulty:
                         problem_cache[submission] = {
                             "difficulty": difficulty,

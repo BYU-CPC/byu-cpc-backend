@@ -83,7 +83,7 @@ def get_cf_exp(user, exp):
         day = get_day_from_timestamp(problem["timestamp"])
         if day not in exp:
             exp[day] = 0.0
-        cf_problem_exp = cf_difficulty_to_exp(problem["difficulty"])
+        cf_problem_exp = cf_difficulty_to_exp(max(problem["difficulty"], 800))
         if problem["type"] == "contestant":
             cf_problem_exp *= 2
         exp[day] += cf_problem_exp
