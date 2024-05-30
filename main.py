@@ -80,6 +80,8 @@ def calc_table():
                     }
                 )
             user["kattis_data"] = problems
+        else:
+            user["kattis_data"] = []
         user["cf_data"] = {"contests": [], "problems": []}
         if user["codeforces_username"]:
             submissions_ref = db.collection("codeforces").document(
