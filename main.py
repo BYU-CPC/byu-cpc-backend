@@ -121,7 +121,7 @@ def calc_user(user_id, user):
             )
         user["cf_data"]["problems"] = problems
     table_ref.document(user_id).set(
-        {"cache": json.dumps(user), "timestamp": dt.now().timestamp()}
+        {"cache": json.dumps(get_table_info(user)), "timestamp": dt.now().timestamp()}
     )
 
 
