@@ -39,114 +39,110 @@ def invalidate_cache():
     db.collection("table").document("cache").set(None)
 
 
-def calc_table():
-    rows = []
-    docs = db.collection("users").stream()
+def calc_user(user_id, user):
     difficulties_ref = db.collection("problems")
-    for doc in docs:
-        user = doc.to_dict()
-        user["id"] = doc.id
-        print(user)
-        if user["kattis_username"]:
-            submissions_ref = db.collection("kattis").document(user["kattis_username"])
-            submissions = submissions_ref.get().to_dict()
-            if not submissions:
-                submissions = {}
-            problems = []
-            for submission in submissions:
-                print(submission)
-                if not is_timestamp_in_contest(submissions[submission]):
-                    continue
-                difficulty = 0
-                if (
-                    submission in problem_cache
-                    and dt.now().timestamp() - problem_cache[submission]["timestamp"]
-                    < 1000 * 60 * 60 * 24
-                ):
-                    difficulty = problem_cache[submission]["difficulty"]
-                else:
-                    difficulty_dict = (
-                        difficulties_ref.document(submission).get().to_dict()
-                    )
-                    difficulty = difficulty_dict["difficulty"] if difficulty_dict else 0
-                    if difficulty:
-                        problem_cache[submission] = {
-                            "difficulty": difficulty,
-                            "timestamp": dt.now().timestamp(),
-                        }
-                problems.append(
-                    {
-                        "id": submission,
-                        "timestamp": submissions[submission],
+    table_ref = db.collection("table")
+    user["id"] = user_id
+    user["kattis_data"] = []
+    if user["kattis_username"]:
+        submissions_ref = db.collection("kattis").document(user["kattis_username"])
+        submissions = submissions_ref.get().to_dict()
+        if not submissions:
+            submissions = {}
+        for submission in submissions:
+            if not is_timestamp_in_contest(submissions[submission]):
+                continue
+            difficulty = 0
+            if (
+                submission in problem_cache
+                and dt.now().timestamp() - problem_cache[submission]["timestamp"]
+                < 1000 * 60 * 60 * 24
+            ):
+                difficulty = problem_cache[submission]["difficulty"]
+            else:
+                difficulty_dict = difficulties_ref.document(submission).get().to_dict()
+                difficulty = difficulty_dict["difficulty"] if difficulty_dict else 0
+                if difficulty:
+                    problem_cache[submission] = {
                         "difficulty": difficulty,
+                        "timestamp": dt.now().timestamp(),
                     }
-                )
-            user["kattis_data"] = problems
-        else:
-            user["kattis_data"] = []
-        user["cf_data"] = {"contests": [], "problems": []}
-        if user["codeforces_username"]:
-            submissions_ref = db.collection("codeforces").document(
-                user["codeforces_username"]
+            user["kattis_data"].append(
+                {
+                    "id": submission,
+                    "timestamp": submissions[submission],
+                    "difficulty": difficulty,
+                }
             )
-            submissions = submissions_ref.get().to_dict()
-            if not submissions:
-                submissions = {"contests": {}}
-            problems = []
-            for submission in submissions:
-                if submission == "contests":
-                    user["cf_data"]["contests"] = [
-                        {
-                            "id": contest_id,
-                            "timestamp": submissions[submission][contest_id],
-                        }
-                        for contest_id in submissions[submission]
-                        if is_timestamp_in_contest(submissions[submission][contest_id])
-                    ]
-                    continue
-                if not is_timestamp_in_contest(submissions[submission]["time"]):
-                    continue
-                difficulty = 800
-                if (
-                    submission in problem_cache
-                    and dt.now().timestamp() - problem_cache[submission]["timestamp"]
-                    < 1000 * 60 * 60 * 24
-                ):
-                    difficulty = problem_cache[submission]["difficulty"]
-                else:
-                    difficulty_dict = (
-                        difficulties_ref.document(submission).get().to_dict()
-                    )
-                    difficulty = (
-                        difficulty_dict["difficulty"] if difficulty_dict else 800
-                    )
-                    if difficulty:
-                        problem_cache[submission] = {
-                            "difficulty": difficulty,
-                            "timestamp": dt.now().timestamp(),
-                        }
-                problems.append(
+    user["cf_data"] = {"contests": [], "problems": []}
+    if user["codeforces_username"]:
+        submissions_ref = db.collection("codeforces").document(
+            user["codeforces_username"]
+        )
+        submissions = submissions_ref.get().to_dict()
+        if not submissions:
+            submissions = {"contests": {}}
+        problems = []
+        for submission in submissions:
+            if submission == "contests":
+                user["cf_data"]["contests"] = [
                     {
-                        "id": submission,
-                        "timestamp": submissions[submission]["time"],
-                        "difficulty": difficulty,
-                        "type": submissions[submission]["type"],
+                        "id": contest_id,
+                        "timestamp": submissions[submission][contest_id],
                     }
-                )
-            user["cf_data"]["problems"] = problems
-        rows.append(get_table_info(user))
-    json_rows = json.dumps(rows)
-    db.collection("table").document("cache").set({"cache": json_rows, "valid": 1})
-    return json_rows
+                    for contest_id in submissions[submission]
+                    if is_timestamp_in_contest(submissions[submission][contest_id])
+                ]
+                continue
+            if not is_timestamp_in_contest(submissions[submission]["time"]):
+                continue
+            difficulty = 800
+            if (
+                submission in problem_cache
+                and dt.now().timestamp() - problem_cache[submission]["timestamp"]
+                < 1000 * 60 * 60 * 24
+            ):
+                difficulty = problem_cache[submission]["difficulty"]
+            else:
+                difficulty_dict = difficulties_ref.document(submission).get().to_dict()
+                difficulty = difficulty_dict["difficulty"] if difficulty_dict else 800
+                if difficulty:
+                    problem_cache[submission] = {
+                        "difficulty": difficulty,
+                        "timestamp": dt.now().timestamp(),
+                    }
+            problems.append(
+                {
+                    "id": submission,
+                    "timestamp": submissions[submission]["time"],
+                    "difficulty": difficulty,
+                    "type": submissions[submission]["type"],
+                }
+            )
+        user["cf_data"]["problems"] = problems
+    table_ref.document(user_id).set(
+        {"cache": json.dumps(user), "timestamp": dt.now().timestamp()}
+    )
 
 
 @app.route("/get_table")
 def get_table():
-    cache = db.collection("table").document("cache").get().to_dict()
-    if cache and cache["valid"]:
+    table_ref = db.collection("table")
+    cache = table_ref.document("cache").get().to_dict()
+    if cache:
         print("hit db cache")
         return cache["cache"]
-    return calc_table()
+    rows = []
+    for doc in table_ref.stream():
+        if doc.id == "cache":
+            continue
+        user = doc.to_dict()
+        rows.append(json.loads(user["cache"]))
+    json_rows = json.dumps(rows)
+    table_ref.document("cache").set(
+        {"cache": json_rows, "timestamp": dt.now().timestamp()}
+    )
+    return json_rows
 
 
 @app.route("/kattis_submit", methods=["POST"])
@@ -225,6 +221,7 @@ def check_user(user_dict):
                         )
         if change:
             submissions_ref.set(past_submissions)
+            invalidate_cache()
 
 
 @app.route("/check_users", methods=["GET"])
@@ -237,6 +234,7 @@ def check_users():
     for user in results:
         user_dict = user.to_dict()
         check_user(user_dict)
+        calc_user(user.id, user_dict)
         users_ref.document(user.id).update({"last_checked": dt.now().timestamp()})
     return "ok"
 
@@ -246,7 +244,7 @@ def invalidate_users():
     users_ref = db.collection("users")
     results = users_ref.stream()
     for user in results:
-        users_ref.document(user.id).update({"last_checked": 0})
+        users_ref.document(user["id"]).update({"last_checked": 0})
     return "ok"
 
 
@@ -323,7 +321,7 @@ def set_kattis_username():
         username = get_username()
         kattis_username = request.json["username"]
         user_ref = db.collection("users").document(username)
-        user_ref.update({"kattis_username": kattis_username})
+        user_ref.update({"kattis_username": kattis_username, "last_checked": 0})
         return "ok", 200
     return "not signed in", 400
 
