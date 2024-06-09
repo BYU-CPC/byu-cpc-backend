@@ -128,10 +128,10 @@ def calc_user(user_id, user):
 @app.route("/get_table")
 def get_table():
     table_ref = db.collection("table")
-    cache = table_ref.document("cache").get().to_dict()
-    if cache:
-        print("hit db cache")
-        return cache["cache"]
+    # cache = table_ref.document("cache").get().to_dict()
+    # if cache:
+    #     print("hit db cache")
+    #     return cache["cache"]
     rows = []
     for doc in table_ref.stream():
         if doc.id == "cache":
