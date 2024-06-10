@@ -196,9 +196,12 @@ def check_user(user_dict):
                     or len(submission["author"]["members"]) > 1
                 ):
                     continue
-                problem_id = str(submission["problem"]["contestId"]) + str(
-                    submission["problem"]["index"]
+                prefix = (
+                    submission["problem"]["contestId"]
+                    if "contestId" in submission["problem"]
+                    else submission["problem"]["problemsetName"]
                 )
+                problem_id = str(prefix) + str(submission["problem"]["index"])
                 if (
                     problem_id not in past_submissions
                     or submit_time < past_submissions[problem_id]["time"]
@@ -233,8 +236,11 @@ def check_users():
     results = query.stream()
     for user in results:
         user_dict = user.to_dict()
-        check_user(user_dict)
-        calc_user(user.id, user_dict)
+        try:
+            check_user(user_dict)
+            calc_user(user.id, user_dict)
+        except:
+            print("Error checking user", user.id)
         users_ref.document(user.id).update({"last_checked": dt.now().timestamp()})
     return "ok"
 
