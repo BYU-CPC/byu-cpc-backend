@@ -139,9 +139,9 @@ def get_table():
         user = doc.to_dict()
         rows.append(json.loads(user["cache"]))
     json_rows = json.dumps(rows)
-    table_ref.document("cache").set(
-        {"cache": json_rows, "timestamp": dt.now().timestamp()}
-    )
+    # table_ref.document("cache").set(
+    #     {"cache": json_rows, "timestamp": dt.now().timestamp()}
+    # )
     return json_rows
 
 
@@ -162,7 +162,7 @@ def kattis_submissions():
             submissions[problem_id] = timestamp
     if change:
         submissions_ref.set(submissions)
-        invalidate_cache()
+        # invalidate_cache()
     return "ok", 200
 
 
@@ -224,7 +224,7 @@ def check_user(user_dict):
                         )
         if change:
             submissions_ref.set(past_submissions)
-            invalidate_cache()
+            # invalidate_cache()
 
 
 @app.route("/check_users", methods=["GET"])
@@ -232,16 +232,16 @@ def check_users():
     users_ref = db.collection("users")
     query = users_ref.order_by(
         "last_checked", direction=firestore.Query.ASCENDING
-    ).limit(1)
+    ).limit(3)
     results = query.stream()
     for user in results:
         user_dict = user.to_dict()
         try:
             check_user(user_dict)
             calc_user(user.id, user_dict)
+            users_ref.document(user.id).update({"last_checked": dt.now().timestamp()})
         except:
             print("Error checking user", user.id)
-        users_ref.document(user.id).update({"last_checked": dt.now().timestamp()})
     return "ok"
 
 
@@ -250,7 +250,7 @@ def invalidate_users():
     users_ref = db.collection("users")
     results = users_ref.stream()
     for user in results:
-        users_ref.document(user["id"]).update({"last_checked": 0})
+        users_ref.document(user.id).update({"last_checked": 0})
     return "ok"
 
 
@@ -297,7 +297,7 @@ def check_problems():
 
 @app.route("/create_user", methods=["POST"])
 def create_user():
-    invalidate_cache()
+    # invalidate_cache()
     if is_logged_in():
         data = request.json
         username = get_username()
@@ -322,7 +322,7 @@ def create_user():
 
 @app.route("/set_kattis_username", methods=["POST"])
 def set_kattis_username():
-    invalidate_cache()
+    # invalidate_cache()
     if is_logged_in():
         username = get_username()
         kattis_username = request.json["username"]
@@ -334,7 +334,7 @@ def set_kattis_username():
 
 @app.route("/set_codeforces_username", methods=["POST"])
 def set_codeforces_username():
-    invalidate_cache()
+    # invalidate_cache()
     if is_logged_in():
         username = get_username()
         codeforces_username = request.json["username"]
