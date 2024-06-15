@@ -166,6 +166,29 @@ def kattis_submissions():
     return "ok", 200
 
 
+@app.route("/get_submissions")
+def get_submissions():
+    id = request.args.get("id")
+    user_ref = db.collection("users").document(id)
+    codeforces_ref = db.collection("codeforces")
+    kattis_ref = db.collection("kattis")
+    user_dict = user_ref.get().to_dict()
+    codeforces_username = user_dict["codeforces_username"]
+    kattis_username = user_dict["kattis_username"]
+    codeforces_submissions = {}
+    kattis_submissions = {}
+    if codeforces_username:
+        codeforces_submissions = (
+            codeforces_ref.document(codeforces_username).get().to_dict()
+        )
+    if kattis_username:
+        kattis_submissions = kattis_ref.document(kattis_username).get().to_dict()
+    return {
+        "kattis_submissions": kattis_submissions,
+        "codeforces_submissions": codeforces_submissions,
+    }
+
+
 def add_codeforces_problem_rating(id, rating):
     if id in problem_cache:
         return
