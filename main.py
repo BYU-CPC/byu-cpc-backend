@@ -166,9 +166,8 @@ def kattis_submissions():
     return "ok", 200
 
 
-@app.route("/get_submissions")
-def get_submissions():
-    id = request.args.get("id")
+@app.route("/get_submissions/<id>")
+def get_submissions(id):
     user_ref = db.collection("users").document(id)
     codeforces_ref = db.collection("codeforces")
     kattis_ref = db.collection("kattis")
