@@ -52,10 +52,9 @@ def get_max_streak(days):
     best = 0
     cur = 0
     for i in sorted(days):
-        if i - 1 in days:
+        if i - 1 in days or (i - 2 in days and skippable(i - 1)):
             cur += 1
-        # let people take a break on Sundays without ending their streak
-        elif not skippable(i - 1):
+        else:
             cur = 1
         best = max(cur, best)
     return best
