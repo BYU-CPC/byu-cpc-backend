@@ -44,6 +44,7 @@ def calc_user(user_id, user):
     table_ref = db.collection("table")
     user["id"] = user_id
     user["kattis_data"] = []
+    user["kattis_submissions"] = {}
     if user["kattis_username"]:
         submissions_ref = db.collection("kattis").document(user["kattis_username"])
         submissions = submissions_ref.get().to_dict()
@@ -74,7 +75,9 @@ def calc_user(user_id, user):
                     "difficulty": difficulty,
                 }
             )
+        user["kattis_submissions"] = submissions
     user["cf_data"] = {"contests": [], "problems": []}
+    user["codeforces_submissions"] = {}
     if user["codeforces_username"]:
         submissions_ref = db.collection("codeforces").document(
             user["codeforces_username"]
@@ -120,6 +123,7 @@ def calc_user(user_id, user):
                 }
             )
         user["cf_data"]["problems"] = problems
+        user["codeforces_submissions"] = submissions
     table_ref.document(user_id).set(
         {"cache": json.dumps(get_table_info(user)), "timestamp": dt.now().timestamp()}
     )
@@ -164,28 +168,6 @@ def kattis_submissions():
         submissions_ref.set(submissions)
         # invalidate_cache()
     return "ok", 200
-
-
-@app.route("/get_submissions/<id>")
-def get_submissions(id):
-    user_ref = db.collection("users").document(id)
-    codeforces_ref = db.collection("codeforces")
-    kattis_ref = db.collection("kattis")
-    user_dict = user_ref.get().to_dict()
-    codeforces_username = user_dict["codeforces_username"]
-    kattis_username = user_dict["kattis_username"]
-    codeforces_submissions = {}
-    kattis_submissions = {}
-    if codeforces_username:
-        codeforces_submissions = (
-            codeforces_ref.document(codeforces_username).get().to_dict()
-        )
-    if kattis_username:
-        kattis_submissions = kattis_ref.document(kattis_username).get().to_dict()
-    return {
-        "kattis_submissions": kattis_submissions,
-        "codeforces_submissions": codeforces_submissions,
-    }
 
 
 def add_codeforces_problem_rating(id, rating):
