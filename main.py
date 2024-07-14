@@ -40,7 +40,6 @@ def get_study_problems():
             .replace(tzinfo=pytz.timezone("US/Mountain"))
             .timestamp()
         )
-        print(week, week_start, dt.now().timestamp())
         if dt.now().timestamp() > week_start:
             if week_start > newest:
                 newest = week_start
@@ -48,7 +47,6 @@ def get_study_problems():
             for platform in all_study_problems:
                 if platform in week:
                     all_study_problems[platform] |= set(week[platform])
-    print(all_study_problems)
 
 
 get_study_problems()
@@ -284,7 +282,6 @@ def check_users():
 
 @app.route("/invalidate_users", methods=["GET"])
 def invalidate_users():
-    get_study_problems()
     users_ref = db.collection("users")
     results = users_ref.stream()
     for user in results:
@@ -409,6 +406,7 @@ def codeforces_validate():
 
 @app.route("/get_this_week")
 def get_this_week():
+    get_study_problems()
     return json.dumps(this_week)
 
 
