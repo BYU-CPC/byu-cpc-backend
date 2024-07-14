@@ -10,7 +10,8 @@ from bs4 import BeautifulSoup
 import requests
 from collections import defaultdict
 import json
-from datetime import datetime as dt
+from datetime import datetime as dt, tzinfo
+import pytz
 
 os.environ["TZ"] = "US/Mountain"
 time.tzset()
@@ -22,6 +23,35 @@ app.config["CORS_HEADERS"] = "Content-Type"
 
 db = firestore.Client(project="byu-cpc")
 problem_cache = {}
+all_study_problems = {"kattis": set(), "codeforces": set()}
+this_week = {}
+
+
+def get_study_problems():
+    global this_week, all_study_problems
+    all_study_problems = {"kattis": set(), "codeforces": set()}
+    week_ref = db.collection("week")
+    newest = 0
+    for doc in week_ref.stream():
+        week = doc.to_dict()
+        week_id = week["start"]
+        week_start = (
+            dt.fromisoformat(week_id + "T00:00:00.0")
+            .replace(tzinfo=pytz.timezone("US/Mountain"))
+            .timestamp()
+        )
+        print(week, week_start, dt.now().timestamp())
+        if dt.now().timestamp() > week_start:
+            if week_start > newest:
+                newest = week_start
+                this_week = week
+            for platform in all_study_problems:
+                if platform in week:
+                    all_study_problems[platform] |= set(week[platform])
+    print(all_study_problems)
+
+
+get_study_problems()
 
 
 def get_username():
@@ -125,7 +155,10 @@ def calc_user(user_id, user):
         user["cf_data"]["problems"] = problems
         user["codeforces_submissions"] = submissions
     table_ref.document(user_id).set(
-        {"cache": json.dumps(get_table_info(user)), "timestamp": dt.now().timestamp()}
+        {
+            "cache": json.dumps(get_table_info(user, all_study_problems)),
+            "timestamp": dt.now().timestamp(),
+        }
     )
 
 
@@ -251,6 +284,7 @@ def check_users():
 
 @app.route("/invalidate_users", methods=["GET"])
 def invalidate_users():
+    get_study_problems()
     users_ref = db.collection("users")
     results = users_ref.stream()
     for user in results:
@@ -371,6 +405,11 @@ def codeforces_validate():
     url = f"https://codeforces.com/api/user.info?handles={username}"
     response = requests.get(url)
     return {"valid": response.status_code == 200}
+
+
+@app.route("/get_this_week")
+def get_this_week():
+    return json.dumps(this_week)
 
 
 @app.route("/ping")

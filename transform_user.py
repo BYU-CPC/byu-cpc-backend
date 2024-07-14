@@ -68,22 +68,27 @@ def cf_difficulty_to_exp(d):
     return kattis_difficulty_to_exp((1 / 25 * d - 17) / 10)
 
 
-def get_kattis_exp(user, exp):
+def get_kattis_exp(user, exp, study_problems):
     for problem in user["kattis_data"]:
         day = get_day_from_timestamp(problem["timestamp"])
         if day not in exp:
             exp[day] = 0.0
-        exp[day] += kattis_difficulty_to_exp(problem["difficulty"])
+        bonus = kattis_difficulty_to_exp(problem["difficulty"])
+        if problem in study_problems["kattis"]:
+            bonus *= 2
+        exp[day] += bonus
     return exp
 
 
-def get_cf_exp(user, exp):
+def get_cf_exp(user, exp, study_problems):
     for problem in user["cf_data"]["problems"]:
         day = get_day_from_timestamp(problem["timestamp"])
         if day not in exp:
             exp[day] = 0.0
         cf_problem_exp = cf_difficulty_to_exp(max(problem["difficulty"], 800))
         if problem["type"] == "contestant":
+            cf_problem_exp *= 2
+        if problem["id"] in study_problems["codeforces"]:
             cf_problem_exp *= 2
         exp[day] += cf_problem_exp
     for contest in user["cf_data"]["contests"]:
@@ -94,10 +99,10 @@ def get_cf_exp(user, exp):
     return exp
 
 
-def get_exp_by_day(user):
+def get_exp_by_day(user, study_problems):
     exp = {}
-    exp = get_kattis_exp(user, exp)
-    exp = get_cf_exp(user, exp)
+    exp = get_kattis_exp(user, exp, study_problems)
+    exp = get_cf_exp(user, exp, study_problems)
     for day in exp:
         exp[day] += 10
     return exp
@@ -127,12 +132,12 @@ def is_timestamp_in_contest(timestamp):
     )
 
 
-def get_table_info(user):
+def get_table_info(user, study_problems):
     days = get_days(user)
     user["cur_streak"] = get_cur_streak(days)
     user["max_streak"] = get_max_streak(days)
     user["days"] = sorted(days)
-    user["exp"] = get_exp_by_day(user)
+    user["exp"] = get_exp_by_day(user, study_problems)
     user["score"] = round(sum(user["exp"].values()))
     user["is_active"] = get_is_active(days)
     level, next_level, cur_exp = get_level(user["score"])
