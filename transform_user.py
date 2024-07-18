@@ -74,7 +74,7 @@ def get_kattis_exp(user, exp, study_problems):
         if day not in exp:
             exp[day] = 0.0
         bonus = kattis_difficulty_to_exp(problem["difficulty"])
-        if problem in study_problems["kattis"]:
+        if problem["id"] in study_problems["kattis"]:
             bonus *= 2
         exp[day] += bonus
     return exp
