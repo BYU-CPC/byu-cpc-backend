@@ -160,6 +160,26 @@ def calc_user(user_id, user):
     )
 
 
+@app.route("/get_user_ids")
+def get_user_ids():
+    users_ref = db.collection("users")
+    ids = [item.id for item in users_ref.select(field_paths=[]).get()]
+    return ids
+
+
+def get_user_by_id(id):
+    table_ref = db.collection("table")
+    user = table_ref.document(id).get()
+    return user.to_dict()
+
+
+@app.route("/get_user")
+def get_user():
+    data = request.json
+    id = data["id"]
+    return get_user_by_id(id)
+
+
 @app.route("/get_table")
 def get_table():
     table_ref = db.collection("table")
