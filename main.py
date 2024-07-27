@@ -172,7 +172,7 @@ def get_user_by_id(id):
     return user.to_dict()
 
 
-@app.route("/get_user")
+@app.route("/get_user", methods=["POST"])
 def get_user():
     data = request.json
     id = data["id"]
