@@ -4,7 +4,6 @@ from transform_user import get_table_info, is_timestamp_in_contest
 from google.cloud import firestore
 from firebase_admin import auth
 import firebase_admin
-from math import inf
 import os, time
 from bs4 import BeautifulSoup
 import requests
