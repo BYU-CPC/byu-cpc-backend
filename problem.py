@@ -1,4 +1,5 @@
 from collections import defaultdict
+from flask_cors import cross_origin
 from bs4 import BeautifulSoup
 from google.cloud import firestore
 from utils import get_hash_table_index
@@ -20,6 +21,7 @@ def get_platform_problems(problem_collection_ref):
 
 
 @problem.route("/get_all_problems")
+@cross_origin()
 def get_all_problems():
     return {
         platform: get_platform_problems(db.collection(platform + "_problems"))
@@ -36,7 +38,7 @@ def update_codeforces_problems():
         response_content = response.json()
         for problem in response_content["result"]["problems"]:
             if "contestId" in problem:
-                problem_id = f"{problem["contestId"]}{problem["index"]}"
+                problem_id = f"{problem['contestId']}{problem['index']}"
             else:
                 print(problem)
                 continue
