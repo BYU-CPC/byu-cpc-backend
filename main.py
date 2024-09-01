@@ -7,20 +7,21 @@ import firebase_admin
 import os, time
 from bs4 import BeautifulSoup
 import requests
-from collections import defaultdict
 import json
-from datetime import datetime as dt, tzinfo
+from datetime import datetime as dt
 import pytz
+from problem import problem
 
 os.environ["TZ"] = "US/Mountain"
 time.tzset()
 firebase_admin.initialize_app()
 app = Flask(__name__)
+app.register_blueprint(problem)
 cors = CORS(app)
 app.config["CORS_HEADERS"] = "Content-Type"
 
 
-db = firestore.Client(project="byu-cpc")
+db = firestore.Client()
 problem_cache = {}
 all_study_problems = {"kattis": set(), "codeforces": set()}
 this_week = {}
@@ -302,6 +303,7 @@ def check_problems():
                 if problem_link and difficulty_data:
                     try:
                         problem_id = problem_link["href"].strip().split("/")[-1]
+                        print(problem_link)
                         difficulty_text = difficulty_data.text.strip()
                         if "-" in difficulty_text:
                             difficulty = difficulty_text.split("-")[1].strip()
@@ -405,6 +407,14 @@ def get_this_week():
 @app.route("/ping")
 def ping():
     return "pong", 200
+
+
+@app.route("/test")
+def test():
+    test_ref = db.collection("test").document("test")
+    test = test_ref.get().to_dict()
+    print(test)
+    return "ok"
 
 
 if __name__ == "__main__":
