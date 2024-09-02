@@ -1,6 +1,5 @@
 from flask import Flask, request
 from flask_cors import CORS, cross_origin
-from transform_user import get_table_info, is_timestamp_in_contest
 from google.cloud import firestore
 from firebase_admin import auth
 import firebase_admin
@@ -82,19 +81,6 @@ def get_users():
     return json.dumps(users)
 
 
-@app.route("/get_table")
-def get_table():
-    table_ref = db.collection("table")
-    rows = []
-    for doc in table_ref.stream():
-        if doc.id == "cache":
-            continue
-        user = doc.to_dict()
-        rows.append(json.loads(user["cache"]))
-    json_rows = json.dumps(rows)
-    return json_rows
-
-
 @app.route("/kattis_submit", methods=["POST"])
 @cross_origin()
 def kattis_submissions():
@@ -160,15 +146,6 @@ def check_user(user_dict):
             submissions_ref.set(past_submissions)
 
 
-@app.route("/invalidate_users", methods=["GET"])
-def invalidate_users():
-    users_ref = db.collection("users")
-    results = users_ref.stream()
-    for user in results:
-        users_ref.document(user.id).update({"last_checked": 0})
-    return "ok"
-
-
 @app.route("/create_user", methods=["POST"])
 def create_user():
     if is_logged_in():
@@ -182,10 +159,8 @@ def create_user():
         kattis_username = data["kattis_username"] if "kattis_username" in data else ""
         document = {
             "display_name": display_name,
-            "contests": {},
             "kattis_username": kattis_username,
             "codeforces_username": codeforces_username,
-            "last_checked": 0,
         }
 
         user_ref.set(document)
