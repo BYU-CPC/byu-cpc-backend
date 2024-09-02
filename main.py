@@ -11,6 +11,7 @@ import json
 from datetime import datetime as dt
 import pytz
 from problem import problem
+from platforms import supported_platforms
 
 os.environ["TZ"] = "US/Mountain"
 time.tzset()
@@ -61,10 +62,6 @@ def is_logged_in():
     if username:
         return True
     return False
-
-
-def invalidate_cache():
-    db.collection("table").document("cache").set(None)
 
 
 def calc_user(user_id, user):
@@ -160,6 +157,24 @@ def calc_user(user_id, user):
     )
 
 
+@app.route("/get_users")
+def get_users():
+    users_ref = db.collection("users")
+    users = []
+    for user in users_ref.stream():
+        user_dict = user.to_dict()
+        user_dict["id"] = user.id
+        for platform in supported_platforms:
+            key = f"{platform}_username"
+            submissions = {}
+            if key in user_dict and user_dict[key]:
+                username = user_dict[key]
+                submissions = db.collection(platform).document(username).get().to_dict()
+            user_dict[f"{platform}_submissions"] = submissions
+        users.append(user_dict)
+    return json.dumps(users)
+
+
 @app.route("/get_table")
 def get_table():
     table_ref = db.collection("table")
@@ -190,7 +205,6 @@ def kattis_submissions():
             submissions[problem_id] = timestamp
     if change:
         submissions_ref.set(submissions)
-        # invalidate_cache()
     return "ok", 200
 
 
@@ -252,7 +266,6 @@ def check_user(user_dict):
                         )
         if change:
             submissions_ref.set(past_submissions)
-            # invalidate_cache()
 
 
 @app.route("/check_users", methods=["GET"])
@@ -264,6 +277,7 @@ def check_users():
     results = query.stream()
     for user in results:
         user_dict = user.to_dict()
+        print(user_dict["display_name"])
         try:
             check_user(user_dict)
             calc_user(user.id, user_dict)
@@ -303,7 +317,6 @@ def check_problems():
                 if problem_link and difficulty_data:
                     try:
                         problem_id = problem_link["href"].strip().split("/")[-1]
-                        print(problem_link)
                         difficulty_text = difficulty_data.text.strip()
                         if "-" in difficulty_text:
                             difficulty = difficulty_text.split("-")[1].strip()
@@ -326,7 +339,6 @@ def check_problems():
 
 @app.route("/create_user", methods=["POST"])
 def create_user():
-    # invalidate_cache()
     if is_logged_in():
         data = request.json
         username = get_username()
@@ -402,6 +414,13 @@ def codeforces_validate():
 def get_this_week():
     get_study_problems()
     return json.dumps(this_week)
+
+
+@app.route("/get_all_study_problems")
+def get_all_study_problems():
+    get_study_problems()
+    serializable = {key: list(all_study_problems[key]) for key in all_study_problems}
+    return json.dumps(serializable)
 
 
 @app.route("/ping")
