@@ -146,6 +146,24 @@ def check_user(user_dict):
             submissions_ref.set(past_submissions)
 
 
+@app.route("/check_users", methods=["GET"])
+def check_users():
+    users_ref = db.collection("users")
+    query = users_ref.order_by(
+        "last_checked", direction=firestore.Query.ASCENDING
+    ).limit(5)
+    results = query.stream()
+    for user in results:
+        user_dict = user.to_dict()
+        try:
+            check_user(user_dict)
+            users_ref.document(user.id).update({"last_checked": dt.now().timestamp()})
+            time.sleep(1)  # so codeforces doesn't rate limit
+        except:
+            print("Error checking user", user.id)
+    return "ok"
+
+
 @app.route("/create_user", methods=["POST"])
 def create_user():
     if is_logged_in():
