@@ -1,6 +1,5 @@
 from flask import Flask, request
 from flask_cors import CORS, cross_origin
-from transform_user import get_table_info, is_timestamp_in_contest
 from google.cloud import firestore
 from firebase_admin import auth
 import firebase_admin
@@ -64,99 +63,6 @@ def is_logged_in():
     return False
 
 
-def calc_user(user_id, user):
-    difficulties_ref = db.collection("problems")
-    table_ref = db.collection("table")
-    user["id"] = user_id
-    user["kattis_data"] = []
-    user["kattis_submissions"] = {}
-    if user["kattis_username"]:
-        submissions_ref = db.collection("kattis").document(user["kattis_username"])
-        submissions = submissions_ref.get().to_dict()
-        if not submissions:
-            submissions = {}
-        for submission in submissions:
-            if not is_timestamp_in_contest(submissions[submission]):
-                continue
-            difficulty = 0
-            if (
-                submission in problem_cache
-                and dt.now().timestamp() - problem_cache[submission]["timestamp"]
-                < 1000 * 60 * 60 * 24
-            ):
-                difficulty = problem_cache[submission]["difficulty"]
-            else:
-                difficulty_dict = difficulties_ref.document(submission).get().to_dict()
-                difficulty = difficulty_dict["difficulty"] if difficulty_dict else 0
-                if difficulty:
-                    problem_cache[submission] = {
-                        "difficulty": difficulty,
-                        "timestamp": dt.now().timestamp(),
-                    }
-            user["kattis_data"].append(
-                {
-                    "id": submission,
-                    "timestamp": submissions[submission],
-                    "difficulty": difficulty,
-                }
-            )
-        user["kattis_submissions"] = submissions
-    user["cf_data"] = {"contests": [], "problems": []}
-    user["codeforces_submissions"] = {}
-    if user["codeforces_username"]:
-        submissions_ref = db.collection("codeforces").document(
-            user["codeforces_username"]
-        )
-        submissions = submissions_ref.get().to_dict()
-        if not submissions:
-            submissions = {"contests": {}}
-        problems = []
-        for submission in submissions:
-            if submission == "contests":
-                user["cf_data"]["contests"] = [
-                    {
-                        "id": contest_id,
-                        "timestamp": submissions[submission][contest_id],
-                    }
-                    for contest_id in submissions[submission]
-                    if is_timestamp_in_contest(submissions[submission][contest_id])
-                ]
-                continue
-            if not is_timestamp_in_contest(submissions[submission]["time"]):
-                continue
-            difficulty = 800
-            if (
-                submission in problem_cache
-                and dt.now().timestamp() - problem_cache[submission]["timestamp"]
-                < 1000 * 60 * 60 * 24
-            ):
-                difficulty = problem_cache[submission]["difficulty"]
-            else:
-                difficulty_dict = difficulties_ref.document(submission).get().to_dict()
-                difficulty = difficulty_dict["difficulty"] if difficulty_dict else 800
-                if difficulty:
-                    problem_cache[submission] = {
-                        "difficulty": difficulty,
-                        "timestamp": dt.now().timestamp(),
-                    }
-            problems.append(
-                {
-                    "id": submission,
-                    "timestamp": submissions[submission]["time"],
-                    "difficulty": difficulty,
-                    "type": submissions[submission]["type"],
-                }
-            )
-        user["cf_data"]["problems"] = problems
-        user["codeforces_submissions"] = submissions
-    table_ref.document(user_id).set(
-        {
-            "cache": json.dumps(get_table_info(user, all_study_problems)),
-            "timestamp": dt.now().timestamp(),
-        }
-    )
-
-
 @app.route("/get_users")
 def get_users():
     users_ref = db.collection("users")
@@ -173,19 +79,6 @@ def get_users():
             user_dict[f"{platform}_submissions"] = submissions
         users.append(user_dict)
     return json.dumps(users)
-
-
-@app.route("/get_table")
-def get_table():
-    table_ref = db.collection("table")
-    rows = []
-    for doc in table_ref.stream():
-        if doc.id == "cache":
-            continue
-        user = doc.to_dict()
-        rows.append(json.loads(user["cache"]))
-    json_rows = json.dumps(rows)
-    return json_rows
 
 
 @app.route("/kattis_submit", methods=["POST"])
@@ -206,14 +99,6 @@ def kattis_submissions():
     if change:
         submissions_ref.set(submissions)
     return "ok", 200
-
-
-def add_codeforces_problem_rating(id, rating):
-    if id in problem_cache:
-        return
-    problem_cache[id] = {"difficulty": rating, "timestamp": dt.now().timestamp()}
-    problem_ref = db.collection("problems").document(id)
-    problem_ref.set({"difficulty": rating, "platform": "codeforces"})
 
 
 def check_user(user_dict):
@@ -257,84 +142,8 @@ def check_user(user_dict):
                         past_submissions["contests"][
                             str(submission["contestId"])
                         ] = submit_time
-                    if (
-                        "rating" in submission["problem"]
-                        and submission["problem"]["rating"]
-                    ):
-                        add_codeforces_problem_rating(
-                            problem_id, submission["problem"]["rating"]
-                        )
         if change:
             submissions_ref.set(past_submissions)
-
-
-@app.route("/check_users", methods=["GET"])
-def check_users():
-    users_ref = db.collection("users")
-    query = users_ref.order_by(
-        "last_checked", direction=firestore.Query.ASCENDING
-    ).limit(3)
-    results = query.stream()
-    for user in results:
-        user_dict = user.to_dict()
-        print(user_dict["display_name"])
-        try:
-            check_user(user_dict)
-            calc_user(user.id, user_dict)
-            users_ref.document(user.id).update({"last_checked": dt.now().timestamp()})
-        except:
-            print("Error checking user", user.id)
-    return "ok"
-
-
-@app.route("/invalidate_users", methods=["GET"])
-def invalidate_users():
-    users_ref = db.collection("users")
-    results = users_ref.stream()
-    for user in results:
-        users_ref.document(user.id).update({"last_checked": 0})
-    return "ok"
-
-
-@app.route("/check_problems", methods=["GET"])
-def check_problems():
-    page_ref = db.collection("kattis").document("problem_crawler_page")
-    page = page_ref.get().to_dict()
-    n = page["page"] if page and "page" in page else 1
-    url = f"https://open.kattis.com/problems?page={n}"
-    response = requests.get(url)
-    if response.status_code == 200:
-        problems = []
-        html_content = response.text
-        soup = BeautifulSoup(html_content, "html.parser")
-        for table in soup.find_all("tbody"):
-            rows = table.find_all("tr")
-
-            for row in rows:
-                problem_link = row.find("a", href=True)
-                difficulty_data = row.find("span", class_="difficulty_number")
-
-                if problem_link and difficulty_data:
-                    try:
-                        problem_id = problem_link["href"].strip().split("/")[-1]
-                        difficulty_text = difficulty_data.text.strip()
-                        if "-" in difficulty_text:
-                            difficulty = difficulty_text.split("-")[1].strip()
-                        else:
-                            difficulty = difficulty_text
-                        problems.append((problem_id, float(difficulty)))
-                    except:
-                        print("problem failed")
-        next_page = n + 1 if problems else 1
-        page_ref.set({"page": next_page})
-        if problems:
-            batch = db.batch()
-            for problem_id, difficulty in problems:
-                ref = db.collection("problems").document(problem_id)
-                data = {"difficulty": difficulty, "platform": "kattis"}
-                batch.set(ref, data)
-            batch.commit()
-    return "ok", 200
 
 
 @app.route("/create_user", methods=["POST"])
@@ -350,10 +159,8 @@ def create_user():
         kattis_username = data["kattis_username"] if "kattis_username" in data else ""
         document = {
             "display_name": display_name,
-            "contests": {},
             "kattis_username": kattis_username,
             "codeforces_username": codeforces_username,
-            "last_checked": 0,
         }
 
         user_ref.set(document)
