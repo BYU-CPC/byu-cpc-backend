@@ -16,3 +16,8 @@ def get_leaderboard(leaderboard_name):
         .get()
         .to_dict()
     )
+
+
+@leaderboard.route("/leaderboard")
+def get_leaderboard_index():
+    return json.dumps(db.collection("leaderboard").document("index").get().to_dict())
