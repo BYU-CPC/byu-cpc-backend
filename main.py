@@ -11,12 +11,14 @@ from datetime import datetime as dt
 import pytz
 from problem import problem
 from platforms import supported_platforms
+from leaderboard import leaderboard
 
 os.environ["TZ"] = "US/Mountain"
 time.tzset()
 firebase_admin.initialize_app()
 app = Flask(__name__)
 app.register_blueprint(problem)
+app.register_blueprint(leaderboard)
 cors = CORS(app)
 app.config["CORS_HEADERS"] = "Content-Type"
 
