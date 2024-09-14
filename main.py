@@ -24,34 +24,6 @@ app.config["CORS_HEADERS"] = "Content-Type"
 
 
 db = firestore.Client()
-problem_cache = {}
-all_study_problems = {"kattis": set(), "codeforces": set()}
-this_week = {}
-
-
-def get_study_problems():
-    global this_week, all_study_problems
-    all_study_problems = {"kattis": set(), "codeforces": set()}
-    week_ref = db.collection("week")
-    newest = 0
-    for doc in week_ref.stream():
-        week = doc.to_dict()
-        week_id = week["start"]
-        week_start = (
-            dt.fromisoformat(week_id + "T00:00:00.0")
-            .replace(tzinfo=pytz.timezone("US/Mountain"))
-            .timestamp()
-        )
-        if dt.now().timestamp() > week_start:
-            if week_start > newest:
-                newest = week_start
-                this_week = week
-            for platform in all_study_problems:
-                if platform in week:
-                    all_study_problems[platform] |= set(week[platform])
-
-
-get_study_problems()
 
 
 def get_username():
@@ -85,7 +57,7 @@ def get_users():
 
 @app.route("/kattis_submit", methods=["POST"])
 @cross_origin()
-def kattis_submissions():
+def kattis_submit():
     data = request.json
     submissions_ref = db.collection("kattis").document(data["username"])
     submissions = submissions_ref.get().to_dict()
@@ -140,10 +112,6 @@ def check_user(user_dict):
                         "time": submit_time,
                         "type": submission["author"]["participantType"].lower(),
                     }
-                    if submission["author"]["participantType"] == "CONTESTANT":
-                        past_submissions["contests"][
-                            str(submission["contestId"])
-                        ] = submit_time
         if change:
             submissions_ref.set(past_submissions)
 
@@ -235,19 +203,6 @@ def codeforces_validate():
     url = f"https://codeforces.com/api/user.info?handles={username}"
     response = requests.get(url)
     return {"valid": response.status_code == 200}
-
-
-@app.route("/get_this_week")
-def get_this_week():
-    get_study_problems()
-    return json.dumps(this_week)
-
-
-@app.route("/get_all_study_problems")
-def get_all_study_problems():
-    get_study_problems()
-    serializable = {key: list(all_study_problems[key]) for key in all_study_problems}
-    return json.dumps(serializable)
 
 
 @app.route("/ping")
