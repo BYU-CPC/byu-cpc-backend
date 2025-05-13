@@ -97,3 +97,6 @@ def update_problems(problem_id_to_info, problem_collection_ref):
             for problem_id in index_to_problem_id[index]
         }
         problem_collection_ref.document(str(index)).set(update_payload, merge=True)
+
+
+
