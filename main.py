@@ -149,6 +149,7 @@ def create_user():
             "display_name": display_name,
             "kattis_username": kattis_username,
             "codeforces_username": codeforces_username,
+            "last_checked": 0
         }
 
         user_ref.set(document)
