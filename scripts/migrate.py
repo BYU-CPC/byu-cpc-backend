@@ -14,9 +14,11 @@ from google.cloud import firestore
 db = firestore.Client()
 
 platforms = [["kattis", "Kattis"], ["codeforces", "Codeforces"]]
+print("adding platforms")
 for platform in platforms:
     add_platform(cur, *platform)
 
+print("adding users")
 users_ref = db.collection("users")
 for user in users_ref.stream():
     user_id = user.id
@@ -36,6 +38,7 @@ for user in users_ref.stream():
     except Exception as e:
         print(f"Error processing user {user_id}: {str(e)}")
 
+print("adding crawlers")
 crawlers_ref = db.collection("crawlers")
 for crawler in crawlers_ref.stream():
     id = crawler.id
@@ -44,6 +47,7 @@ for crawler in crawlers_ref.stream():
 
 problems = []
 
+print("adding problems")
 for [platform, _] in platforms:
     problems_ref = db.collection(f"{platform}_problems")
     for page in problems_ref.stream():
@@ -51,9 +55,12 @@ for [platform, _] in platforms:
         for [problem, value] in page_dict.items():
             rating = value["rating"] if "rating" in value else None
             problems.append((problem, platform, rating, value["name"]))
+upsert_problems(cur, problems)
+
 
 all_submissions = []
 
+print("adding codeforces submissions")
 submissions_ref = db.collection("codeforces")
 for submissions in submissions_ref.stream():
     username = submissions.id
@@ -64,6 +71,7 @@ for submissions in submissions_ref.stream():
 
 upsert_submissions(cur, all_submissions)
 
+print("adding kattis submissions")
 all_submissions = []
 submissions_ref = db.collection("kattis")
 for submissions in submissions_ref.stream():
@@ -74,6 +82,7 @@ for submissions in submissions_ref.stream():
 
 upsert_submissions(cur,all_submissions)
 
+print("finished")
 con.commit()
 cur.close()
 con.close()

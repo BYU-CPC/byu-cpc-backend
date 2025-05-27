@@ -9,7 +9,7 @@ def upsert_submissions(cursor, submissions: list[tuple[str, str, str, datetime, 
     query = """
         WITH problem_upsert AS (
             INSERT INTO problem (external_id, platform_id, name)
-            VALUES (%s, %s, 'Unknown Problem')  -- Default name for new problems
+            VALUES (%s, %s, %s)  -- Default name for new problems
             ON CONFLICT (external_id, platform_id) DO NOTHING
         ),
         person_lookup AS (
@@ -56,7 +56,7 @@ def upsert_submissions(cursor, submissions: list[tuple[str, str, str, datetime, 
         (external_id, platform_id, username, time, status, subtype) = sub
         params.append((
             # Problem upsert params
-            external_id, platform_id,
+            external_id, platform_id, external_id,
             # Person lookup params
             username, platform_id,
             # Conflict check params

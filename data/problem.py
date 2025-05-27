@@ -8,3 +8,8 @@ def upsert_problems(cursor, problems: list[tuple[str, str, float | None, str]]):
             name = EXCLUDED.name
     """
     cursor.executemany(query, problems)
+
+# deprecated
+def get_all_problems(cursor):
+    cursor.execute("SELECT external_id, platform_id, rating, name FROM problem")
+    return cursor.fetchall()
