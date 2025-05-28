@@ -71,7 +71,8 @@ def all_joined_leaderboards():
 
 @leaderboard.route("/leaderboard/<leaderboard_id>")
 def get_leaderboard(leaderboard_id):
-    user_id = get_user_id()
+    user_id = get_user_id(True)
+    print("user_id",user_id)
     invitation_id = request.args.get('invitation_id')
     db, close = get_db()
     details = get_leaderboard_details(db, user_id if user_id else "x", leaderboard_id, invitation_id)

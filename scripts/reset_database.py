@@ -7,6 +7,7 @@ cur = con.cursor()
 # Drop all tables in correct order with CASCADE
 cur.execute("""
     DROP TABLE IF EXISTS
+        invitation,
         invitations,
         submission,
         problem_to_practice_set,
@@ -145,7 +146,7 @@ cur.execute("""
 """)
 
 cur.execute("""
-    CREATE TABLE invitations (
+    CREATE TABLE invitation (
         id VARCHAR PRIMARY KEY,
         expires_at TIMESTAMP,
         created_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -157,7 +158,7 @@ cur.execute("""
 cur.execute("CREATE INDEX submission_person_id_idx ON submission (person_id);")
 cur.execute("CREATE INDEX submission_platform_id_idx ON submission (platform_id);")
 cur.execute("CREATE INDEX practice_set_leaderboard_id_idx ON practice_set (leaderboard_id);")
-cur.execute("CREATE INDEX invitations_leaderboard_id_idx ON invitations (leaderboard_id);")
+cur.execute("CREATE INDEX invitation_leaderboard_id_idx ON invitation (leaderboard_id);")
 
 con.commit()
 cur.close()

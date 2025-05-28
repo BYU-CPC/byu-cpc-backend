@@ -33,7 +33,7 @@ def upsert_submissions(cursor, submissions: list[tuple[str, str, str, datetime, 
                    AND s.external_id = %s 
                    AND s.platform_id = %s 
                    AND s.person_id = pl.person_id),
-                gen_random_uuid()
+                gen_random_uuid()::varchar
             ),
             %s,  -- external_id
             %s,  -- platform_id
