@@ -4,3 +4,5 @@ firebase_admin
 bs4
 flask-cors
 google-cloud-firestore
+python-dotenv
+psycopg2-binary
