@@ -37,7 +37,6 @@ def update_codeforces_problems():
             if "contestId" in problem:
                 problem_id = f"{problem['contestId']}{problem['index']}"
             else:
-                print(problem)
                 continue
             rating = problem["rating"] if "rating" in problem else None
             name = problem["name"]
@@ -51,7 +50,6 @@ def update_codeforces_problems():
 def update_kattis_problems():
     [db, close] = get_db()
     n = get_crawler(db,"kattis")
-    print(n)
     url = f"https://open.kattis.com/problems?page={n}"
     response = requests.get(url)
     if response.status_code == 200:

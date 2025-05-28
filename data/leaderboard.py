@@ -69,7 +69,6 @@ def add_person_to_leaderboard(cursor, person_id, invitation_id, leaderboard_id):
     return cursor.rowcount > 0
 
 def get_leaderboard_details(cursor, person_id, leaderboard_id, invitation_id):
-    print("person_id",person_id)
     cursor.execute(f"""
         WITH leaderboard_auth AS({leaderboard_auth("WHERE l.id = %s")}),
         participants AS (
