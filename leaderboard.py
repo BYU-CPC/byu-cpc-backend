@@ -42,7 +42,7 @@ def join_leaderboard():
     if not is_logged_in():
         return "not signed in", 401
     user_id = get_user_id()
-    invitation_id = data["invitation_id"]
+    invitation_id = data["invitation_id"] if "invitation_id" in data else None
     leaderboard_id = data["leaderboard_id"]
     db, close = get_db()
     added = add_person_to_leaderboard(db, user_id, invitation_id, leaderboard_id)
