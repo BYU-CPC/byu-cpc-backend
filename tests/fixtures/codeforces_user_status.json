@@ -1,0 +1,61 @@
+{
+  "status": "OK",
+  "result": [
+    {
+      "id": 1001,
+      "creationTimeSeconds": 1700000000,
+      "problem": {
+        "contestId": 4,
+        "index": "A",
+        "name": "Watermelon"
+      },
+      "author": {
+        "members": [{"handle": "tourist"}],
+        "participantType": "PRACTICE"
+      },
+      "verdict": "OK"
+    },
+    {
+      "id": 1002,
+      "creationTimeSeconds": 1700000100,
+      "problem": {
+        "contestId": 71,
+        "index": "A",
+        "name": "Way Too Long Words"
+      },
+      "author": {
+        "members": [{"handle": "tourist"}],
+        "participantType": "CONTESTANT"
+      },
+      "verdict": "WRONG_ANSWER"
+    },
+    {
+      "id": 1003,
+      "creationTimeSeconds": 1700000200,
+      "problem": {
+        "contestId": 231,
+        "index": "A",
+        "name": "Team"
+      },
+      "author": {
+        "members": [{"handle": "tourist"}, {"handle": "friend"}],
+        "participantType": "PRACTICE"
+      },
+      "verdict": "OK"
+    },
+    {
+      "id": 1004,
+      "creationTimeSeconds": 1690000000,
+      "problem": {
+        "contestId": 1,
+        "index": "A",
+        "name": "Old Submission"
+      },
+      "author": {
+        "members": [{"handle": "tourist"}],
+        "participantType": "PRACTICE"
+      },
+      "verdict": "OK"
+    }
+  ]
+}

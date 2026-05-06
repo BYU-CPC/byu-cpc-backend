@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 def upsert_submissions(cursor, submissions: list[tuple[str, str, str, datetime, str, str | None]]):
     """

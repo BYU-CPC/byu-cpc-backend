@@ -6,7 +6,14 @@ from psycopg2 import pool
 from environment import DATABASE_URL
 
 
-_connection_pool = pool.ThreadedConnectionPool(minconn=1, maxconn=10, dsn=DATABASE_URL)
+_connection_pool = None
+
+
+def _get_connection_pool():
+    global _connection_pool
+    if _connection_pool is None:
+        _connection_pool = pool.ThreadedConnectionPool(minconn=1, maxconn=10, dsn=DATABASE_URL)
+    return _connection_pool
 
 
 @contextmanager
@@ -18,7 +25,7 @@ def get_db():
     failed blocks are rolled back so the connection is safe to reuse. The cursor is
     always closed and the connection is always returned to the pool.
     """
-    connection = _connection_pool.getconn()
+    connection = _get_connection_pool().getconn()
     cursor = connection.cursor()
     try:
         yield cursor

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime, timedelta
 def add_person(cursor, id, display_name, last_checked = datetime.now() ):
     cursor.execute("""

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 # problems: (external_id, platform_id, rating, name)[]
 def upsert_problems(cursor, problems: list[tuple[str, str, float | None, str]]):
     query = """

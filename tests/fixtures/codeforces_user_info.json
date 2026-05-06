@@ -1,0 +1,13 @@
+{
+  "status": "OK",
+  "result": [
+    {
+      "handle": "tourist",
+      "contribution": 0,
+      "rank": "legendary grandmaster",
+      "rating": 3900,
+      "maxRank": "legendary grandmaster",
+      "maxRating": 3979
+    }
+  ]
+}

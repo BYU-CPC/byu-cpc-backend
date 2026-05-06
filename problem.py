@@ -71,5 +71,6 @@ def update_kattis_problems():
                     problems.append((problem_id, "kattis", float(difficulty), problem_link.contents[0]))
         next_page = n + 1 if problems else 1
         with get_db() as db:
+            upsert_problems(db, problems)
             upsert_crawler(db, "kattis", next_page)
     return "ok"
