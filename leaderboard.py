@@ -29,9 +29,8 @@ def create_leaderboard():
     scoring = data["scoring"]
     rules = data["rules"]
     id = data["id"]
-    db, close = get_db()
-    id = upsert_leaderboard(db, name, start, finish, period, public_view, public_join, scoring, rules, user_id, id)
-    close()
+    with get_db() as db:
+        id = upsert_leaderboard(db, name, start, finish, period, public_view, public_join, scoring, rules, user_id, id)
     return json.dumps({'id': id})
 
 @leaderboard.route("/leaderboard/join", methods=["POST"])
@@ -44,27 +43,24 @@ def join_leaderboard():
     user_id = get_user_id()
     invitation_id = data["invitation_id"] if "invitation_id" in data else None
     leaderboard_id = data["leaderboard_id"]
-    db, close = get_db()
-    added = add_person_to_leaderboard(db, user_id, invitation_id, leaderboard_id)
-    close()
+    with get_db() as db:
+        added = add_person_to_leaderboard(db, user_id, invitation_id, leaderboard_id)
     if added: return "added"
     return "forbidden", 403
 
 @leaderboard.route("/leaderboard/all_accessible")
 def all_accessible_leaderboards():
-    db,close = get_db()
     user_id = get_user_id()
-    results = get_accessible_leaderboards(db, user_id)
-    close()
+    with get_db() as db:
+        results = get_accessible_leaderboards(db, user_id)
     return json.dumps(results)
 
 @leaderboard.route("/leaderboard/joined")
 def all_joined_leaderboards():
     user_id = get_user_id()
     if not user_id: return "not signed in", 401
-    db,close = get_db()
-    results = get_joined_leaderboards(db, user_id)
-    close()
+    with get_db() as db:
+        results = get_joined_leaderboards(db, user_id)
     return json.dumps(results)
 
 
@@ -72,16 +68,14 @@ def all_joined_leaderboards():
 def get_leaderboard(leaderboard_id):
     user_id = get_user_id(True)
     invitation_id = request.args.get('invitation_id')
-    db, close = get_db()
-    details = get_leaderboard_details(db, user_id if user_id else "x", leaderboard_id, invitation_id)
-    close()
+    with get_db() as db:
+        details = get_leaderboard_details(db, user_id if user_id else "x", leaderboard_id, invitation_id)
     return json.dumps(details)
 
 @leaderboard.route("/leaderboard/created")
 def my_leaderboards():
     user_id = get_user_id()
     if not user_id: return "not signed in", 401
-    db,close = get_db()
-    results = get_created_leaderboards(db, user_id)
-    close()
+    with get_db() as db:
+        results = get_created_leaderboards(db, user_id)
     return json.dumps(results)

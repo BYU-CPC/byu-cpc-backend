@@ -9,7 +9,6 @@ import requests
 submission = Blueprint("submission", __name__)
 @submission.route("/kattis_submit", methods=["POST"])
 def kattis_submit():
-    db, close = get_db()
     data = request.json
     username = data["username"]
     submissions = []
@@ -17,8 +16,8 @@ def kattis_submit():
         external_id = submission["problemId"]
         time = datetime.fromtimestamp(submission["timestamp"] / 1000)
         submissions.append((external_id, "kattis", username, time, "AC", None))
-    upsert_submissions(db, submissions)
-    close()
+    with get_db() as db:
+        upsert_submissions(db, submissions)
     return "ok"
 
 def check_user(username, last_checked):
@@ -43,14 +42,19 @@ def check_user(username, last_checked):
             problem_id = str(prefix) + str(submission["problem"]["index"])
             submit_type = submission["author"]["participantType"].lower()
             submissions.append((problem_id, "codeforces", username, submit_time, "AC", submit_type))
+    return submissions
 
 @submission.route("/check_users", methods=["GET"])
 def check_users():
-    db, close = get_db()
-    users = refresh_and_get_oldest_codeforces_users(db)
+    with get_db() as db:
+        users = refresh_and_get_oldest_codeforces_users(db)
+
     for user in users:
         try:
-            check_user(*user)
+            submissions = check_user(*user)
+            if submissions:
+                with get_db() as db:
+                    upsert_submissions(db, submissions)
             sleep(1)  # so codeforces doesn't rate limit
         except Exception as e:
             print("Error checking user", *user, e)

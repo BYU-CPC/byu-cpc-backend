@@ -13,10 +13,9 @@ problem = Blueprint("problem", __name__)
 @problem.route("/get_all_problems")
 @cross_origin()
 def get_all_problems():
-    [db, close] = get_db()
     result = {}
-    problems = get_problems(db)
-    close()
+    with get_db() as db:
+        problems = get_problems(db)
     for external_id, platform_id, rating, name in problems:
         if platform_id not in result:
             result[platform_id] = {}
@@ -30,7 +29,6 @@ def update_codeforces_problems():
     url = "https://codeforces.com/api/problemset.problems"
     response = requests.get(url)
     if response.status_code == 200:
-        [db, close] = get_db()
         problems = []
         response_content = response.json()
         for problem in response_content["result"]["problems"]:
@@ -41,15 +39,15 @@ def update_codeforces_problems():
             rating = problem["rating"] if "rating" in problem else None
             name = problem["name"]
             problems.append((problem_id, "codeforces", rating, name))
-        upsert_problems(db, problems)
-        close()
+        with get_db() as db:
+            upsert_problems(db, problems)
     return "ok"
 
 
 @problem.route("/update_kattis_problems")
 def update_kattis_problems():
-    [db, close] = get_db()
-    n = get_crawler(db,"kattis")
+    with get_db() as db:
+        n = get_crawler(db,"kattis")
     url = f"https://open.kattis.com/problems?page={n}"
     response = requests.get(url)
     if response.status_code == 200:
@@ -72,6 +70,6 @@ def update_kattis_problems():
                         difficulty = difficulty_text
                     problems.append((problem_id, "kattis", float(difficulty), problem_link.contents[0]))
         next_page = n + 1 if problems else 1
-        upsert_crawler(db, "kattis", next_page)
-        close()
+        with get_db() as db:
+            upsert_crawler(db, "kattis", next_page)
     return "ok"

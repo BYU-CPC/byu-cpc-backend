@@ -16,9 +16,8 @@ def set_username():
     user_id = get_user_id()
     username = data["username"]
     platform = data["platform"]
-    db, close = get_db()
-    upsert_platform_login(db, user_id, username, platform)
-    close()
+    with get_db() as db:
+        upsert_platform_login(db, user_id, username, platform)
     return "ok"
 
 
@@ -38,10 +37,9 @@ def validate_username():
 def get_profile():
     if not is_logged_in():
         return "not signed in", 401
-    db, close = get_db()
     person_id = get_user_id()
-    user_data = get_user_profile(db,person_id)
-    close()
+    with get_db() as db:
+        user_data = get_user_profile(db,person_id)
     return json.dumps(user_data), 200
 
 
@@ -57,20 +55,18 @@ def create_user():
         data["codeforces_username"] if "codeforces_username" in data else None
     )
     kattis_username = data["kattis_username"] if "kattis_username" in data else None
-    db, close = get_db()
-    add_person(db, person_id, display_name)
-    if codeforces_username:
-        upsert_platform_login(db, person_id, codeforces_username, "codeforces")
-    if kattis_username:
-        upsert_platform_login(db, person_id, kattis_username, "kattis")
-    close()
+    with get_db() as db:
+        add_person(db, person_id, display_name)
+        if codeforces_username:
+            upsert_platform_login(db, person_id, codeforces_username, "codeforces")
+        if kattis_username:
+            upsert_platform_login(db, person_id, kattis_username, "kattis")
     return "ok", 200
 
 @person.route("/get_users")
 def get_users():
-    db, close = get_db()
-    users = get_all_users(db)
-    close()
+    with get_db() as db:
+        users = get_all_users(db)
     result = []
     for u in users:
         user = {}
