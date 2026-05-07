@@ -11,6 +11,7 @@ if [[ "${ENV_FILE}" != /* ]]; then
   ENV_FILE="${PROJECT_ROOT}/${ENV_FILE}"
 fi
 DATABASE_URL_VALUE="${DATABASE_URL:-postgresql:///${DB_NAME}}"
+FIREBASE_PROJECT_ID="${FIREBASE_PROJECT_ID:-}"
 
 log() {
   printf '\n==> %s\n' "$1"
@@ -31,6 +32,57 @@ command_exists() {
 
 ensure_command() {
   command_exists "$1" || fail "Required command '$1' was not found. Please install it and rerun this script."
+}
+
+get_firebase_project_id() {
+  if [[ -n "$FIREBASE_PROJECT_ID" ]]; then
+    printf '%s\n' "$FIREBASE_PROJECT_ID"
+    return
+  fi
+
+  python3 - "${PROJECT_ROOT}/.firebaserc" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+if not path.exists():
+    sys.exit(1)
+
+project_id = json.loads(path.read_text()).get("projects", {}).get("default")
+if not project_id:
+    sys.exit(1)
+print(project_id)
+PY
+}
+
+upsert_env_var() {
+  local key="$1"
+  local value="$2"
+
+  python3 - "$ENV_FILE" "$key" "$value" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+key = sys.argv[2]
+value = sys.argv[3]
+path.parent.mkdir(parents=True, exist_ok=True)
+lines = path.read_text().splitlines() if path.exists() else []
+updated = []
+replaced = False
+prefix = f"{key}="
+for line in lines:
+    if line.startswith(prefix):
+        if not replaced:
+            updated.append(f"{key}={value}")
+            replaced = True
+        continue
+    updated.append(line)
+if not replaced:
+    updated.append(f"{key}={value}")
+path.write_text("\n".join(updated) + "\n")
+PY
 }
 
 postgres_is_ready() {
@@ -156,30 +208,9 @@ create_database() {
 }
 
 write_env_file() {
-  log "Writing ${ENV_FILE} with DATABASE_URL"
-
-  if [[ -f "$ENV_FILE" ]] && grep -q '^DATABASE_URL=' "$ENV_FILE"; then
-    python3 - "$ENV_FILE" "$DATABASE_URL_VALUE" <<'PY'
-from pathlib import Path
-import sys
-
-path = Path(sys.argv[1])
-database_url = sys.argv[2]
-lines = path.read_text().splitlines()
-updated = []
-replaced = False
-for line in lines:
-    if line.startswith("DATABASE_URL="):
-        if not replaced:
-            updated.append(f"DATABASE_URL={database_url}")
-            replaced = True
-        continue
-    updated.append(line)
-path.write_text("\n".join(updated) + "\n")
-PY
-  else
-    printf 'DATABASE_URL=%s\n' "$DATABASE_URL_VALUE" >> "$ENV_FILE"
-  fi
+  log "Writing ${ENV_FILE}"
+  upsert_env_var "DATABASE_URL" "$DATABASE_URL_VALUE"
+  upsert_env_var "GOOGLE_CLOUD_PROJECT" "$(get_firebase_project_id)"
 }
 
 install_python_dependencies() {
@@ -199,7 +230,41 @@ reset_database_schema() {
   (cd "${PROJECT_ROOT}" && python3 -m scripts.reset_database)
 }
 
+setup_firebase() {
+  local project_id
+  project_id="$(get_firebase_project_id)" || fail "Could not determine Firebase project ID. Set FIREBASE_PROJECT_ID or add a default project to .firebaserc."
+
+  ensure_command firebase
+
+  if ! firebase projects:list --json >/dev/null 2>&1; then
+    log "Authenticating with Firebase"
+    firebase login
+  else
+    log "Firebase CLI is already authenticated"
+  fi
+
+  log "Configuring Firebase project '${project_id}'"
+  python3 - "${PROJECT_ROOT}/.firebaserc" "$project_id" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+project_id = sys.argv[2]
+config = {"projects": {"default": project_id}}
+path.write_text(json.dumps(config, indent=2) + "\n")
+PY
+
+  log "Writing firebase.json"
+  cat > "${PROJECT_ROOT}/firebase.json" <<'JSON'
+{}
+JSON
+
+  (cd "${PROJECT_ROOT}" && firebase use default --non-interactive >/dev/null)
+}
+
 install_python_dependencies
+setup_firebase
 ensure_postgres_running
 ensure_database_role
 create_database
@@ -208,3 +273,4 @@ reset_database_schema
 
 log "Setup complete"
 printf 'DATABASE_URL=%s\n' "$DATABASE_URL_VALUE"
+printf 'GOOGLE_CLOUD_PROJECT=%s\n' "$(get_firebase_project_id)"
