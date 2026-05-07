@@ -109,6 +109,81 @@ def test_update_kattis_problems_resets_crawler_when_page_has_no_problems(monkeyp
     assert mock_upsert_crawler.call_args.args[1:] == ("kattis", 1)
 
 
+def test_submit_accepts_generic_submission_with_optional_code(app, monkeypatch):
+    mock_upsert_submissions = Mock()
+    monkeypatch.setattr(submission_module, "get_db", lambda: fake_db())
+    monkeypatch.setattr(submission_module, "upsert_submissions", mock_upsert_submissions)
+
+    with app.test_request_context(
+        "/submit",
+        method="POST",
+        json={
+            "platform": "kattis",
+            "username": "tourist",
+            "submissions": [
+                {
+                    "problemId": "hello",
+                    "timestamp": 1700000000,
+                    "status": "AC",
+                    "language": "Python 3",
+                    "code": "print('hello')",
+                }
+            ],
+        },
+    ):
+        response = submission_module.submit()
+
+    assert response == "ok"
+    mock_upsert_submissions.assert_called_once()
+    assert mock_upsert_submissions.call_args.args[1] == [
+        (
+            "hello",
+            "kattis",
+            "tourist",
+            datetime.fromtimestamp(1700000000),
+            "AC",
+            None,
+            "Python 3",
+            "print('hello')",
+        )
+    ]
+def test_submit_accepts_submission_without_language_or_code(app, monkeypatch):
+    mock_upsert_submissions = Mock()
+    monkeypatch.setattr(submission_module, "get_db", lambda: fake_db())
+    monkeypatch.setattr(submission_module, "upsert_submissions", mock_upsert_submissions)
+
+    with app.test_request_context(
+        "/submit",
+        method="POST",
+        json={
+            "platform": "kattis",
+            "username": "tourist",
+            "submissions": [
+                {
+                    "problemId": "hello",
+                    "timestamp": 1700000000,
+                }
+            ],
+        },
+    ):
+        response = submission_module.submit()
+
+    assert response == "ok"
+    mock_upsert_submissions.assert_called_once()
+    assert mock_upsert_submissions.call_args.args[1] == [
+        (
+            "hello",
+            "kattis",
+            "tourist",
+            datetime.fromtimestamp(1700000000),
+            "AC",
+            None,
+            None,
+            None,
+        )
+    ]
+
+
 def test_check_user_parses_only_new_single_author_accepted_submissions(monkeypatch):
     mock_get = Mock(return_value=FakeResponse(
         json_data=load_json("codeforces_user_status.json"),

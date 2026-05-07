@@ -1,8 +1,8 @@
 from flask_cors import cross_origin
 from bs4 import BeautifulSoup
-from flask import Blueprint
+from flask import Blueprint, request
 from data.utils import get_db
-from data.problem import get_all_problems as get_problems, upsert_problems
+from data.problem import get_all_problems as get_problems, get_problem_tags, replace_problem_tags, upsert_problems
 from data.crawler import get_crawler, upsert_crawler
 import requests
 
@@ -23,6 +23,19 @@ def get_all_problems():
     return result
 
 
+@problem.route("/get_problem_tags")
+@cross_origin()
+def get_tags_for_problem():
+    problem_id = request.args.get("problem_id")
+    platform = request.args.get("platform")
+
+    if not problem_id or not platform:
+        return {"error": "problem_id and platform query params are required"}, 400
+
+    with get_db() as db:
+        tags = get_problem_tags(db, problem_id, platform)
+    return {"tags": tags}
+
 
 @problem.route("/update_codeforces_problems")
 def update_codeforces_problems():
@@ -30,6 +43,7 @@ def update_codeforces_problems():
     response = requests.get(url)
     if response.status_code == 200:
         problems = []
+        problem_tags = []
         response_content = response.json()
         for problem in response_content["result"]["problems"]:
             if "contestId" in problem:
@@ -38,9 +52,12 @@ def update_codeforces_problems():
                 continue
             rating = problem["rating"] if "rating" in problem else None
             name = problem["name"]
+            tags = problem["tags"] if "tags" in problem else []
             problems.append((problem_id, "codeforces", rating, name))
+            problem_tags.append((problem_id, "codeforces", tags))
         with get_db() as db:
             upsert_problems(db, problems)
+            replace_problem_tags(db, problem_tags)
     return "ok"
 
 

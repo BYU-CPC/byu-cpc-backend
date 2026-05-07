@@ -7,17 +7,34 @@ from data.person import refresh_and_get_oldest_codeforces_users
 import requests
 
 submission = Blueprint("submission", __name__)
-@submission.route("/kattis_submit", methods=["POST"])
-def kattis_submit():
+
+
+@submission.route("/submit", methods=["POST"])
+def submit():
     data = request.json
-    username = data["username"]
-    submissions = []
-    for submission in data["submissions"]:
-        external_id = submission["problemId"]
-        time = datetime.fromtimestamp(submission["timestamp"] / 1000)
-        submissions.append((external_id, "kattis", username, time, "AC", None))
+    if data is None:
+        return "bad request", 400
+
+    try:
+        username = data["username"]
+        platform = data["platform"]
+        parsed_submissions = []
+        for item in data["submissions"]:
+            parsed_submissions.append((
+                item["problemId"],
+                platform,
+                username,
+                datetime.fromtimestamp(item["timestamp"]),
+                item.get("status", "AC"),
+                item.get("type"),
+                item.get("language"),
+                item.get("code"),
+            ))
+    except (KeyError, TypeError, ValueError):
+        return "bad request", 400
+
     with get_db() as db:
-        upsert_submissions(db, submissions)
+        upsert_submissions(db, parsed_submissions)
     return "ok"
 
 def check_user(username, last_checked):

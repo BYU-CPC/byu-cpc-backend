@@ -9,12 +9,14 @@ cur.execute("""
     DROP TABLE IF EXISTS
         invitation,
         invitations,
+        submission_code,
         submission,
         problem_to_practice_set,
         person_to_leaderboard,
         link_to_practice_set,
         practice_set,
         person_to_platform,
+        problem_tag,
         problem,
         crawler,
         leaderboard,
@@ -42,7 +44,6 @@ cur.execute("""
         ('codeforces', 'Codeforces')
     ON CONFLICT (id) DO NOTHING;
 """)
-
 cur.execute("""
     CREATE TABLE person (
         id VARCHAR PRIMARY KEY,
@@ -92,6 +93,17 @@ cur.execute("""
         name VARCHAR,
         created_at TIMESTAMP NOT NULL DEFAULT NOW(),
         PRIMARY KEY (external_id, platform_id)
+    );
+""")
+
+cur.execute("""
+    CREATE TABLE problem_tag (
+        external_id VARCHAR NOT NULL,
+        platform_id VARCHAR NOT NULL,
+        tag VARCHAR NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        FOREIGN KEY (external_id, platform_id) REFERENCES problem (external_id, platform_id),
+        PRIMARY KEY (external_id, platform_id, tag)
     );
 """)
 
@@ -154,6 +166,17 @@ cur.execute("""
 """)
 
 cur.execute("""
+    CREATE TABLE submission_code (
+        submission_id VARCHAR PRIMARY KEY REFERENCES submission(id) ON DELETE CASCADE,
+        language VARCHAR,
+        code TEXT,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        CHECK (language IS NOT NULL OR code IS NOT NULL)
+    );
+""")
+
+cur.execute("""
     CREATE TABLE invitation (
         id VARCHAR PRIMARY KEY,
         expires_at TIMESTAMP,
@@ -165,6 +188,8 @@ cur.execute("""
 # Create indices
 cur.execute("CREATE INDEX submission_person_id_idx ON submission (person_id);")
 cur.execute("CREATE INDEX submission_platform_id_idx ON submission (platform_id);")
+cur.execute("CREATE INDEX problem_tag_problem_idx ON problem_tag (external_id, platform_id);")
+cur.execute("CREATE INDEX problem_tag_tag_idx ON problem_tag (tag);")
 cur.execute("CREATE INDEX practice_set_leaderboard_id_idx ON practice_set (leaderboard_id);")
 cur.execute("CREATE INDEX invitation_leaderboard_id_idx ON invitation (leaderboard_id);")
 
