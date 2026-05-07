@@ -230,41 +230,37 @@ reset_database_schema() {
   (cd "${PROJECT_ROOT}" && python3 -m scripts.reset_database)
 }
 
-setup_firebase() {
+login_application_default_credentials() {
+  if gcloud auth application-default login; then
+    return
+  fi
+
+  warn "Browser-based authentication failed; retrying with --no-browser."
+  gcloud auth application-default login --no-browser
+}
+
+setup_google_application_credentials() {
   local project_id
   project_id="$(get_firebase_project_id)" || fail "Could not determine Firebase project ID. Set FIREBASE_PROJECT_ID or add a default project to .firebaserc."
 
-  ensure_command firebase
+  ensure_command gcloud
 
-  if ! firebase projects:list --json >/dev/null 2>&1; then
-    log "Authenticating with Firebase"
-    firebase login
+  log "Configuring gcloud project '${project_id}'"
+  gcloud config set project "$project_id" >/dev/null
+
+  if ! gcloud auth application-default print-access-token >/dev/null 2>&1; then
+    log "Authenticating Google Application Default Credentials"
+    login_application_default_credentials
   else
-    log "Firebase CLI is already authenticated"
+    log "Google Application Default Credentials are already configured"
   fi
 
-  log "Configuring Firebase project '${project_id}'"
-  python3 - "${PROJECT_ROOT}/.firebaserc" "$project_id" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-path = Path(sys.argv[1])
-project_id = sys.argv[2]
-config = {"projects": {"default": project_id}}
-path.write_text(json.dumps(config, indent=2) + "\n")
-PY
-
-  log "Writing firebase.json"
-  cat > "${PROJECT_ROOT}/firebase.json" <<'JSON'
-{}
-JSON
-
-  (cd "${PROJECT_ROOT}" && firebase use default --non-interactive >/dev/null)
+  log "Setting Application Default Credentials quota project '${project_id}'"
+  gcloud auth application-default set-quota-project "$project_id" >/dev/null
 }
 
 install_python_dependencies
-setup_firebase
+setup_google_application_credentials
 ensure_postgres_running
 ensure_database_role
 create_database

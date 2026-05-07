@@ -36,6 +36,14 @@ cur.execute("""
 """)
 
 cur.execute("""
+    INSERT INTO platform (id, display_name)
+    VALUES
+        ('kattis', 'Kattis'),
+        ('codeforces', 'Codeforces')
+    ON CONFLICT (id) DO NOTHING;
+""")
+
+cur.execute("""
     CREATE TABLE person (
         id VARCHAR PRIMARY KEY,
         display_name VARCHAR NOT NULL,

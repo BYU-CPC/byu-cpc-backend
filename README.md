@@ -9,7 +9,7 @@ Get access to the firebase console: https://console.firebase.google.com/project/
 Make sure you have installed:
 - PostgreSQL
 - Python 3
-- Firebase CLI
+- Google Cloud SDK (`gcloud`)
 
 Run the setup script:
 
@@ -17,6 +17,8 @@ Run the setup script:
 ./scripts/setup.sh
 ```
 
-Then, run 
+Then, run:
 
-`python3 main.py`
+```bash
+python3 main.py
+```
